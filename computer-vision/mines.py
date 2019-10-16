@@ -26,6 +26,9 @@ def gamma_brighten(img, g=0.2):
 
 # currently untested, basically copy/pasted from __main__
 def find_mines(img):
+
+    h, w = np.shape(img)
+
     bright = cv2.bitwise_not(gamma_brighten(img, 0.4))
     sobel = cv2.Sobel(bright, cv2.CV_64F, 0, 1, ksize=25)
     mean = sobel.mean()
@@ -44,12 +47,19 @@ def find_mines(img):
     
     contours, hierarchy = cv2.findContours(closed, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
   
-    centroids = []
+    mine_deets = []
     for c in contours:
-        M = cv2.moments(c)
-        centroids.append((int(M['m10']/M['m00']), int(M['m01']/M['m00'])))
+        (x, y), radius = cv2.minEnclosingCircle(c)
+        centre = (int(x), int(y))
+        radius = int(radius)
 
-    return centroids
+        mine_deets.append((centre, radius))
+
+        # M = cv2.moments(c)
+        # if M['m00'] > 0:
+        #     centroids.append((int(M['m10']/M['m00']), int(M['m01']/M['m00'])))
+
+    return mine_deets
 
 if __name__ == "__main__":
 
@@ -88,6 +98,9 @@ if __name__ == "__main__":
         (x, y), radius = cv2.minEnclosingCircle(c)
         centre = (int(x), int(y))
         radius = int(radius)
+
+        print(radius)
+
         contoured = cv2.circle(colour_img, centre, radius, (0,255,0), 2)
 
     # cntrs_img = cv2.drawContours(colour_img, contours, -1, (0,255,0), 2)
