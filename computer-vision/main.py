@@ -7,18 +7,26 @@ F_NAME = "pics/arena3-1.jpg"
 
 
 def do_stuff(frame):
+
     # crop to arena boundaries
     # missing ~30cm off top and bottom
-    # frame = frame[Y:Y+H,X:X+W]
+    frame = frame[ARENA_TOP_LEFT_IDX[1]:ARENA_BOT_RIGHT_IDX[1],
+                  ARENA_TOP_LEFT_IDX[0]:ARENA_BOT_RIGHT_IDX[0]]
 
-    # mine_details = mines.find_mines(frame)
+    mine_details = mines.find_mines(frame)
     
     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
 
-    # for j, (centre, radius) in enumerate(mine_details):
-    #     cv2.circle(frame, centre, radius, (0,255,0), 2)
+    print("mine locations & rads: (m)")
+    for j, (centre, radius) in enumerate(mine_details):
 
-    cv2.rectangle(frame, tuple(ARENA_TOP_LEFT), tuple(BOTTOM_RIGHT), (0, 0, 255), 1)
+        centre_pos = idx_to_pos(centre)
+
+        if radius < 20 * IDX_SCALE and all([2.4 > i > 0.0 for i in centre_pos]):
+            cv2.circle(frame, centre, radius, (0,255,0), 2)
+            print(f"pos: {centre_pos}, rad: {radius}")
+
+    cv2.rectangle(frame, tuple(ARENA_TOP_LEFT_IDX), tuple(ARENA_BOT_RIGHT_IDX), (0, 0, 255), 1)
 
     # Display the resulting frame
     if USE_VIDEO:
