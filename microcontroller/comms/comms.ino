@@ -82,6 +82,8 @@ void loop() {
     remotePort = Udp.remotePort();
     char mess[12] = "acknowledged";
 
+    sendPacket(mess);
+
     // Use received instruction
   }    
 }
