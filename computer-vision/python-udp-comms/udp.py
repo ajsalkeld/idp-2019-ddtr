@@ -13,10 +13,10 @@ sock = socket.socket(socket.AF_INET, # Internet
 sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
 
 # receive 
-LOCAL_IP = "100.115.92.207"
-LOCAL_PORT = 8080
-sock.bind((LOCAL_IP, LOCAL_PORT))
-
+LOCAL_IP = socket.gethostname()
+LOCAL_PORT = 5576
+#sock.bind((LOCAL_IP, LOCAL_PORT))
+print(LOCAL_IP)
 while True:
     data, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
     print("received message:", data)
