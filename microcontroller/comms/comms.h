@@ -1,8 +1,8 @@
 #ifndef COMMS_H
 #define COMMS_H
-
+// @ts-ignore
 #include <WiFiNINA.h>
-#include <WiFiUDP.h>
+#include <WiFiUdp.h>
 #include <SPI.h>
 
 #define LOCALPORT 2390
