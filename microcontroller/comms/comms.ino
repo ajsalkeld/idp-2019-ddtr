@@ -79,7 +79,6 @@ void loop() {
     Serial.println(packetBuffer);
 
     remoteIP = Udp.remoteIP();
-    remotePort = Udp.remotePort();
     char mess[12] = "acknowledged";
 
     sendPacket(mess);
