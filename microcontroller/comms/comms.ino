@@ -80,17 +80,17 @@ void loop() {
 
     remoteIP = Udp.remoteIP();
     remotePort = Udp.remotePort();
-    char mess[] = "acknowledged";
-    sendPacket(mess, 12);
+    char mess[12] = "acknowledged";
 
     // Use received instruction
   }    
 }
 
-void sendPacket(char message[], int lengthMessage) {
+void sendPacket(char message[]) {
   Udp.beginPacket(remoteIP, remotePort);
-  Udp.write(message, lengthMessage);
+  Udp.write(message);
   Udp.endPacket();
+  Serial.println("Sent acknowledgement");
 }
 
 void printWifiStatus() {
