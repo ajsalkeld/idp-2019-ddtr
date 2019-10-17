@@ -13,3 +13,9 @@ FPS = 10
 
 # scale vs 640, 480
 IDX_SCALE = RESOLUTION[0] / 640.0
+
+def mpl_show(img):
+
+    plt.axis("off")
+    plt.imshow(img[...,::-1],'gray') #convert to bgr
+    plt.show()

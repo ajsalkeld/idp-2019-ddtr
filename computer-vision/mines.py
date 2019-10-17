@@ -1,9 +1,5 @@
-import cv2
-import numpy as np
-from matplotlib import pyplot as plt
-from skimage.util import img_as_ubyte
-from skimage import exposure
-import time
+from global_stuff import *
+
 from arena import *
 
 def simple_brighten(img, a=1.0, b=0.0):
@@ -25,7 +21,9 @@ def apply_fn(img, fn):
 def gamma_brighten(img, g=0.2):
     return apply_fn(img, lambda x: np.clip(pow(x / 255.0, g) * 255.0, 0, 255))    
 
-# currently untested, basically copy/pasted from __main__
+# TODO: ignore the mask when calculating sobel gradient.
+# best approach is probs to add in pixels smoothly blending
+# so gradient is very low
 def find_mines(img):
 
     h, w = np.shape(img)
@@ -42,6 +40,8 @@ def find_mines(img):
 
     sobel2 = exposure.rescale_intensity(sobel, in_range=(0, max_val))
     sobel2 = img_as_ubyte(sobel2)
+
+    mpl_show(sobel2)
 
     ret, threshed = cv2.threshold(sobel2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     closed = cv2.morphologyEx(threshed, cv2.MORPH_CLOSE, np.ones((25, 25),np.uint8))
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     print("starting")
     tstart = time.time()
 
-    fname = "pics/arena3-4.jpg"
+    fname = "pics/arena3-1.jpg"
 
     img = cv2.imread(fname, cv2.IMREAD_GRAYSCALE)
 
@@ -113,10 +113,11 @@ if __name__ == "__main__":
 
     to_draw = [contoured]#[colour_img, sobel, contoured]
 
+    # mpl_show(cv2.bitwise_and(contoured, mine_mask))
 
-    for i, img in enumerate(to_draw):
-        plt.subplot(1, len(to_draw),i+1)
-        plt.axis("off")
-        plt.imshow(img,'gray')
+    # for i, img in enumerate(to_draw):
+    #     plt.subplot(1, len(to_draw),i+1)
+    #     plt.axis("off")
+    #     plt.imshow(img,'gray')
 
     plt.show()
