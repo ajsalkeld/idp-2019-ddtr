@@ -7,6 +7,11 @@ TURQOISE = np.array([180, 220])
 VIOLET = np.array([230, 270])
 PINK = np.array([270, 310])
 
+# potentially better (more distributed):
+YELLOW = np.array([35, 65])
+BLUE = np.array([190, 230])
+PURPLE = np.array([250, 290])
+
 
 DS_RATIO = 4
 
@@ -24,5 +29,5 @@ def detect_robot(img):
         print(colour_min, colour_max)
         img = cv2.inRange(hsv, np.array([colour_min, 100, 100]), np.array([colour_max, 255, 255]))
 
-        mpl_show(img)
+        # mpl_show(img)
     

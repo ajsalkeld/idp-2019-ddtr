@@ -5,14 +5,12 @@ import robot
 from arena import *
 pt = Point
 
-F_NAME = "pics/arena3-2.jpg"
+F_NAME = "pics/arena3-1.jpg"
 
 
 def do_stuff(frame):
 
     start_t = time.time()
-
-    frame = cv2.bitwise_and(frame, cv2.cvtColor(ARENA_MASK, cv2.COLOR_GRAY2RGB))
 
     robot.detect_robot(frame)
 
@@ -27,6 +25,7 @@ def do_stuff(frame):
     
     mine_details = mines.find_mines(mine_area_img, mine_area_mask, x1, y1)
     
+    frame = cv2.bitwise_and(frame, ARENA_MASK)
     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
 
     print("mine locations & rads: (m)")

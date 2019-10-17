@@ -26,11 +26,24 @@ def find_mines(img, mask, img_x, img_y):
 
     h, w = np.shape(img)
 
-    # img = filled_mask(img, mask)
+    ksize = 15 # for sobel and dilation
+    
+    bright = gamma_brighten(img, 0.4)
+    
+    blur_to_norm = cv2.GaussianBlur(bright, (35, 35), cv2.BORDER_DEFAULT)
+    normalised = cv2.divide(img_as_float(bright), img_as_float(blur_to_norm))
 
-    ksize = 15
-    bright = cv2.bitwise_not(gamma_brighten(img, 0.4))
-    sobel = cv2.Sobel(bright, cv2.CV_64F, 0, 1, ksize=ksize)
+    # mpl_show(normalised)
+
+    mean = normalised.mean()
+    ret, trunced = cv2.threshold(normalised, mean, mean, cv2.THRESH_TRUNC)
+
+    # mpl_show(normalised)
+    # mpl_show(trunced)
+
+    mean = trunced.mean()
+
+    sobel = cv2.Sobel(trunced, cv2.CV_64F, 0, 1, ksize=ksize)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksize, ksize))
     dilated_mask = cv2.erode(mask, kernel)
     sobel = cv2.multiply(sobel, img_as_float(dilated_mask))
@@ -45,6 +58,8 @@ def find_mines(img, mask, img_x, img_y):
 
     sobel = exposure.rescale_intensity(sobel, in_range=(0, max_val))
     sobel = img_as_ubyte(sobel)
+
+    # mpl_show(sobel)
 
     ret, threshed = cv2.threshold(sobel, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
