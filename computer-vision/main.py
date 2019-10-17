@@ -9,7 +9,16 @@ F_NAME = "pics/arena3-1.jpg"
 
 def do_stuff(frame):
 
-    mine_details = mines.find_mines(frame)
+    frame = cv2.bitwise_and(frame, ARENA_MASK)
+
+    x, y = MINE_AREA_TOP_LEFT.cv_tup
+    w, h = (MINE_AREA_BOT_RIGHT - MINE_AREA_TOP_LEFT).cv_tup
+
+    mine_area_img = frame[y:y+h, x:x+w]
+    
+    mpl_show(mine_area_img)
+    
+    mine_details = mines.find_mines(mine_area_img)
     
     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
 
@@ -20,19 +29,18 @@ def do_stuff(frame):
             cv2.circle(frame, centre.cv_tup, radius, (0,255,0), 2)
             print(f"pos: {centre.pos}, rad: {radius}")
 
-    cv2.rectangle(frame, tuple(ARENA_TOP_LEFT_IDX), tuple(ARENA_BOT_RIGHT_IDX), (0, 0, 255), 1)
+    cv2.rectangle(frame, ARENA_TOP_LEFT.cv_tup, ARENA_BOT_RIGHT.cv_tup, (0, 0, 255), 1)
+    cv2.rectangle(frame, MINE_AREA_TOP_LEFT.cv_tup, MINE_AREA_BOT_RIGHT.cv_tup, (255, 0, 255), 1)
+    cv2.rectangle(frame, (MINE_AREA_TOP_LEFT + MINE_AREA_DILATION).cv_tup, 
+                        (MINE_AREA_BOT_RIGHT - MINE_AREA_DILATION).cv_tup, (255, 100, 100), 1)
 
     # Display the resulting frame
     if USE_VIDEO:
         cv2.imshow("frame", frame)
         # cv2.waitKey(0)
     else:
-        plt.axis("off")
-        plt.imshow(frame,'gray')
-        plt.show()
+        mpl_show(frame)
  
-
-
 
 mine_pos_lst = []
 

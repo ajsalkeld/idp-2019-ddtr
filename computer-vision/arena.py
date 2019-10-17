@@ -18,10 +18,6 @@ def idx_to_prop(in_idx):
 #-------------------------------------------------
 
 # x, y
-ARENA_TOP_LEFT_IDX = prop_to_idx([0.047, 0.0])
-ARENA_BOT_RIGHT_IDX = prop_to_idx([0.96, 0.999])
-ARENA_IDX_H, ARENA_IDX_W = ARENA_BOT_RIGHT_IDX - ARENA_TOP_LEFT_IDX
-
 GRID_TOP_LEFT_IDX = prop_to_idx([86/1600, 38/1200])
 GRID_BOT_RIGHT_IDX = prop_to_idx([1542/1600, 1128/1200])
 GRID_TOP_LEFT_COORD = np.array([0.0, 0.3])
@@ -137,6 +133,17 @@ class Point():
         return f"pos: {self.pos}, idx: {self.idx}, prop: {self.prop}"
 
 
+    def __iter__(self):
+        self.n = -1
+        return self
+
+    def __next__(self):
+        if self.n < 1:
+            self.n += 1
+            return self._pos[self.n]
+        else:
+            raise StopIteration
+
 
 if __name__ == "__main__":
     
@@ -150,3 +157,25 @@ if __name__ == "__main__":
     x += Point(pos=(0.4, 0.4))
     print(x, y.pos)
     print((y*2 -x).cv_tup)
+
+
+arena_mask_name = "pics/calib/arena3mask.jpg"
+ARENA_MASK = cv2.imread(arena_mask_name, cv2.IMREAD_GRAYSCALE)
+ARENA_MASK = cv2.resize(ARENA_MASK, tuple(RESOLUTION))
+
+TAPE_THICKNESS = 0.018
+
+ARENA_TOP_LEFT = Point(pos=(0.0, 0.0))
+ARENA_BOT_RIGHT = Point(pos=(2.4, 2.4))
+ARENA_IDX_H, ARENA_IDX_W = ARENA_BOT_RIGHT - ARENA_TOP_LEFT
+
+MINE_AREA_TOP_LEFT = Point(pos=(0.3, 0.3))
+MINE_AREA_BOT_RIGHT = Point(pos=(2.4-0.5-TAPE_THICKNESS/2-0.3, 2.1))
+
+MINE_AREA_DILATION = Point(pos=(0.03, 0.03))
+
+MINE_AREA_TOP_LEFT -= MINE_AREA_DILATION
+MINE_AREA_BOT_RIGHT += MINE_AREA_DILATION
+
+
+print(MINE_AREA_BOT_RIGHT.cv_tup, MINE_AREA_TOP_LEFT.cv_tup)
