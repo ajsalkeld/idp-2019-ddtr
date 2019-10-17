@@ -65,8 +65,8 @@ void loop() {
     Serial.print("Received packet of size ");
     Serial.println(packetSize);
     Serial.print("From ");
-    IPAddress remoteIp = Udp.remoteIP();
-    Serial.print(remoteIp);
+    remoteIP = Udp.remoteIP();
+    Serial.print(remoteIP);
     Serial.print(", port ");
     Serial.println(Udp.remotePort());
 
@@ -78,7 +78,6 @@ void loop() {
     Serial.println("Contents:");
     Serial.println(packetBuffer);
 
-    remoteIP = Udp.remoteIP();
     char mess[12] = "acknowledged";
 
     sendPacket(mess);

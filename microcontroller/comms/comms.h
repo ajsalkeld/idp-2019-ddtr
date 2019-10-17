@@ -7,7 +7,7 @@
 
 #define LOCALPORT 2390
 
-int remoteIP; // For UDP. Preset these, and they'll update when packets
+IPAddress remoteIP; // For UDP. Preset these, and they'll update when packets
 int remotePort = 5566; // are received.
 
 
