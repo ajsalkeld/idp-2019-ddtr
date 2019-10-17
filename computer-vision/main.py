@@ -2,16 +2,12 @@ from global_stuff import *
 
 import mines
 from arena import *
+pt = Point
 
 F_NAME = "pics/arena3-1.jpg"
 
 
 def do_stuff(frame):
-
-    # crop to arena boundaries
-    # missing ~30cm off top and bottom
-    frame = frame[ARENA_TOP_LEFT_IDX[1]:ARENA_BOT_RIGHT_IDX[1],
-                  ARENA_TOP_LEFT_IDX[0]:ARENA_BOT_RIGHT_IDX[0]]
 
     mine_details = mines.find_mines(frame)
     
@@ -20,11 +16,9 @@ def do_stuff(frame):
     print("mine locations & rads: (m)")
     for j, (centre, radius) in enumerate(mine_details):
 
-        centre_pos = idx_to_pos(centre)
-
-        if radius < 20 * IDX_SCALE and all([2.4 > i > 0.0 for i in centre_pos]):
-            cv2.circle(frame, centre, radius, (0,255,0), 2)
-            print(f"pos: {centre_pos}, rad: {radius}")
+        if radius < 20 * IDX_SCALE and all([2.4 > i > 0.0 for i in centre.pos]):
+            cv2.circle(frame, centre.cv_tup, radius, (0,255,0), 2)
+            print(f"pos: {centre.pos}, rad: {radius}")
 
     cv2.rectangle(frame, tuple(ARENA_TOP_LEFT_IDX), tuple(ARENA_BOT_RIGHT_IDX), (0, 0, 255), 1)
 
@@ -92,5 +86,5 @@ else:
     print(f"running on single frame (fpath: {F_NAME})")
 
     grey = cv2.imread(F_NAME, cv2.IMREAD_GRAYSCALE)
-
-    do_stuff(grey)
+    
+    do_stuff(cv2.resize(grey, tuple(RESOLUTION)))

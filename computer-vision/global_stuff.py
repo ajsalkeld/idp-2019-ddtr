@@ -13,7 +13,3 @@ FPS = 10
 
 # scale vs 640, 480
 IDX_SCALE = RESOLUTION[0] / 640.0
-
-
-if not USE_VIDEO:
-    RESOLUTION = np.array([1600, 1200])
