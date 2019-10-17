@@ -58,14 +58,20 @@ def find_mines(img, mask, img_x, img_y):
 
     mine_deets = []
     for c in contours:
-        (x, y), radius = cv2.minEnclosingCircle(c)
-        centre = Point(idx=(img_x + x, img_y + y))
-        radius = round(radius)
 
-        mine_deets.append((centre, radius))
 
-        # M = cv2.moments(c)
-        # if M['m00'] > 0:
-        #     centroids.append((int(M['m10']/M['m00']), int(M['m01']/M['m00'])))
+        M = cv2.moments(c)
+        if M['m00'] > 0:
+            centre = Point(idx=(img_x + M['m10']/M['m00'], img_y + M['m01']/M['m00']))
+
+            radius = cv2.contourArea(c)**0.5
+
+            # (x, y), radius = cv2.minEnclosingCircle(c)
+            # centre = Point(idx=(img_x + x, img_y + y))
+            # radius = round(radius)
+
+            mine_deets.append((centre, radius))
+
+ 
 
     return mine_deets

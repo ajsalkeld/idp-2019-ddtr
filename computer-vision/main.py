@@ -1,21 +1,25 @@
 from global_stuff import *
 
 import mines
+import robot
 from arena import *
 pt = Point
 
-F_NAME = "pics/arena3-1.jpg"
+F_NAME = "pics/arena3-2.jpg"
 
 
 def do_stuff(frame):
 
     start_t = time.time()
 
-    frame = cv2.bitwise_and(frame, ARENA_MASK)
+    frame = cv2.bitwise_and(frame, cv2.cvtColor(ARENA_MASK, cv2.COLOR_GRAY2RGB))
+
+    robot.detect_robot(frame)
+
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
 
     x1, y1 = MINE_AREA_TOP_LEFT.cv_tup
     x2, y2 = MINE_AREA_BOT_RIGHT.cv_tup
-
     mine_area_img = frame[y1:y2, x1:x2].copy()
     mine_area_mask = ARENA_MASK[y1:y2, x1:x2].copy()
     # add robot to mask when it's detected
@@ -74,12 +78,9 @@ if USE_VIDEO:
         # Capture frame-by-frame
         ret, frame = cap.read()
 
-        # Our operations on the frame come here
-        grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
         if i == 1:
             i = 0
-            do_stuff(grey)
+            do_stuff(frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
@@ -91,6 +92,8 @@ if USE_VIDEO:
 else:
     print(f"running on single frame (fpath: {F_NAME})")
 
-    grey = cv2.imread(F_NAME, cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread(F_NAME)
 
-    do_stuff(cv2.resize(grey, tuple(RESOLUTION)))
+
+
+    do_stuff(cv2.resize(img, tuple(RESOLUTION)))
