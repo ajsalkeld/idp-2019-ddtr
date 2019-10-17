@@ -100,7 +100,10 @@ class Point():
     
     @property
     def cv_tup(self):
-        return tuple(self.idx)
+        return tuple(
+            [np.clip(self.idx[0], 0, RESOLUTION[0]-1), 
+            np.clip(self.idx[1], 0, RESOLUTION[1]-1)]
+        )
     
 
 
@@ -170,12 +173,44 @@ ARENA_BOT_RIGHT = Point(pos=(2.4, 2.4))
 ARENA_IDX_H, ARENA_IDX_W = ARENA_BOT_RIGHT - ARENA_TOP_LEFT
 
 MINE_AREA_TOP_LEFT = Point(pos=(0.3, 0.3))
-MINE_AREA_BOT_RIGHT = Point(pos=(2.4-0.5-TAPE_THICKNESS/2-0.3, 2.1))
+MINE_AREA_BOT_RIGHT = Point(pos=(2.1-0.5-TAPE_THICKNESS/2, 2.1))
 
-MINE_AREA_DILATION = Point(pos=(0.03, 0.03))
+MINE_AREA_DILATION = Point(pos=(0.04, 0.04))
 
 MINE_AREA_TOP_LEFT -= MINE_AREA_DILATION
 MINE_AREA_BOT_RIGHT += MINE_AREA_DILATION
 
+LIVE_DEPOSIT_TOP_LEFT = Point(pos=(2.4-0.29, 2.4-0.3))
+LIVE_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-TAPE_THICKNESS/2))
 
-print(MINE_AREA_BOT_RIGHT.cv_tup, MINE_AREA_TOP_LEFT.cv_tup)
+DEAD_DEPOSIT_TOP_LEFT = Point(pos=(2.4-0.29, 2.4-0.9))
+DEAD_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-0.6-TAPE_THICKNESS/2))
+
+# LHS_BOUND_LINE_TOP = Point(pos=(2.4-0.5, 0))
+# LHS_BOUND_LINE_BOT = Point(pos=(2.4-0.5, 2.4))
+
+# RHS_BOUND_LINE_TOP = Point(pos=(2.4-0.3, 0))
+# RHS_BOUND_LINE_BOT = Point(pos=(2.4-0.3, 2.4))
+
+def draw_arena_features(img):
+
+    # arena outline
+    cv2.rectangle(img, ARENA_TOP_LEFT.cv_tup, ARENA_BOT_RIGHT.cv_tup, (0, 255, 255), 1)
+    
+    # mine area (loose bound - used for detection)
+    cv2.rectangle(img, MINE_AREA_TOP_LEFT.cv_tup, MINE_AREA_BOT_RIGHT.cv_tup, (255, 0, 255), 1)
+    
+    # mine area (precise)
+    cv2.rectangle(img, (MINE_AREA_TOP_LEFT + MINE_AREA_DILATION).cv_tup, 
+                        (MINE_AREA_BOT_RIGHT - MINE_AREA_DILATION).cv_tup, (255, 100, 100), 1)
+
+    # live mine deposit
+    cv2.rectangle(img, LIVE_DEPOSIT_TOP_LEFT.cv_tup, LIVE_DEPOSIT_BOT_RIGHT.cv_tup, (0, 0, 255), 2)
+
+    # dead mine deposit
+    cv2.rectangle(img, DEAD_DEPOSIT_TOP_LEFT.cv_tup, DEAD_DEPOSIT_BOT_RIGHT.cv_tup, (0, 255, 0), 2)
+ 
+    # # bounding lines
+    # cv2.rectangle(img, LHS_BOUND_LINE_TOP.cv_tup, LHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)
+    # cv2.rectangle(img, RHS_BOUND_LINE_TOP.cv_tup, RHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)
+ 
