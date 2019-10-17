@@ -9,7 +9,7 @@
 
 int remoteIP; // For UDP. Preset these, and they'll update when packets
 int remotePort; // are received.
+void sendPacket(char message[], int lengthMessage);
 
-void SendPacket(String Message);
 
 #endif

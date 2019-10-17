@@ -19,7 +19,7 @@ char  ReplyBuffer[] = "acknowledged";       // a string to send back
 
 void setup() {
   if (DEBUG) {
-    Serial.connect(9600);
+    Serial.begin(9600);
     while (!Serial) {
       ; // Wait for USB serial to connect
     } 
@@ -80,20 +80,19 @@ void loop() {
 
     remoteIP = Udp.remoteIP();
     remotePort = Udp.remotePort();
-
-    sendPacket("acknowledged");
+    char mess[] = "acknowledged";
+    sendPacket(mess, 12);
 
     // Use received instruction
   }    
 }
 
-void sendPacket(String message) {
+void sendPacket(char message[], int lengthMessage) {
   Udp.beginPacket(remoteIP, remotePort);
-  Udp.write(message);
+  Udp.write(message, lengthMessage);
   Udp.endPacket();
 }
 
-#if DEBUG
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
   Serial.print("SSID: ");
@@ -110,4 +109,3 @@ void printWifiStatus() {
   Serial.print(rssi);
   Serial.println(" dBm");
 }
-#endif
