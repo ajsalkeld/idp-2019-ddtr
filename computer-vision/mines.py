@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 from skimage.util import img_as_ubyte
 from skimage import exposure
 import time
+import arena
 
 def simple_brighten(img, a=1.0, b=0.0):
     new_img = np.zeros_like(img)
@@ -50,7 +51,7 @@ def find_mines(img):
     mine_deets = []
     for c in contours:
         (x, y), radius = cv2.minEnclosingCircle(c)
-        centre = (int(x), int(y))
+        centre = Point(idx=(x, y))
         radius = int(radius)
 
         mine_deets.append((centre, radius))

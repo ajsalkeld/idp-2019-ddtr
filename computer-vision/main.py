@@ -8,11 +8,6 @@ F_NAME = "pics/arena3-1.jpg"
 
 def do_stuff(frame):
 
-    # crop to arena boundaries
-    # missing ~30cm off top and bottom
-    frame = frame[ARENA_TOP_LEFT_IDX[1]:ARENA_BOT_RIGHT_IDX[1],
-                  ARENA_TOP_LEFT_IDX[0]:ARENA_BOT_RIGHT_IDX[0]]
-
     mine_details = mines.find_mines(frame)
     
     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
@@ -92,5 +87,5 @@ else:
     print(f"running on single frame (fpath: {F_NAME})")
 
     grey = cv2.imread(F_NAME, cv2.IMREAD_GRAYSCALE)
-
-    do_stuff(grey)
+    
+    do_stuff(cv2.resize(grey, tuple(RESOLUTION)))
