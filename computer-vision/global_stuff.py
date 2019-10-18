@@ -5,7 +5,10 @@ from skimage.util import img_as_ubyte, img_as_float
 from skimage import exposure
 import time
 
-USE_VIDEO = False
+USE_VIDEO = True
+DO_MINES = True
+DO_ROBOT = True
+F_NAME = "pics/arena3-robot.jpg"
 
 # must be 3:4 H:W ratio
 RESOLUTION = np.array([640, 480]) # x, y
