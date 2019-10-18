@@ -53,8 +53,6 @@ void setup() {
   printWifiStatus();  
   #endif
 
-  Serial.println("\nStarting connection to server...");
-  // if you get a connection, report back via serial:
   Udp.begin(localPort);
 }
 
@@ -66,6 +64,7 @@ void loop() {
     Serial.println(packetSize);
     Serial.print("From ");
     remoteIP = Udp.remoteIP();
+    remotePort = Udp.remotePort();
     Serial.print(remoteIP);
     Serial.print(", port ");
     Serial.println(Udp.remotePort());
@@ -78,6 +77,7 @@ void loop() {
     Serial.println("Contents:");
     Serial.println(packetBuffer);
 
+    // Send back
     Udp.beginPacket(remoteIP, remotePort);
     Udp.write("Hello from Arduino");
     Udp.endPacket();
