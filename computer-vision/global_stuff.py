@@ -4,6 +4,8 @@ from matplotlib import pyplot as plt
 from skimage.util import img_as_ubyte, img_as_float
 from skimage import exposure
 import time
+import socket
+import threading
 
 USE_VIDEO = False
 
