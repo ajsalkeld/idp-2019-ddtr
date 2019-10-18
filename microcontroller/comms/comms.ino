@@ -78,19 +78,26 @@ void loop() {
     Serial.println("Contents:");
     Serial.println(packetBuffer);
 
-    char mess[12] = "acknowledged";
-
-    sendPacket(mess);
+    Udp.beginPacket(remoteIP, remotePort);
+    Udp.write("Hello from Arduino");
+    Udp.endPacket();
+    Serial.print("Sent acknowledgement to ");
+    Serial.print(remoteIP);
+    Serial.print(':');
+    Serial.println(remotePort);
 
     // Use received instruction
   }    
 }
 
-void sendPacket(char message[]) {
+void sendPacket(char message) {
   Udp.beginPacket(remoteIP, remotePort);
   Udp.write(message);
   Udp.endPacket();
-  Serial.println("Sent acknowledgement");
+  Serial.print("Sent acknowledgement to ");
+  Serial.print(remoteIP);
+  Serial.print(':');
+  Serial.println(remotePort);
 }
 
 void printWifiStatus() {
