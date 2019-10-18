@@ -3,23 +3,37 @@
 # Good guide: https://wiki.python.org/moin/UdpCommunication
 
 import socket
+import time
 
 UDP_IP = "192.168.43.82"    # arduino's IP
 UDP_PORT = 2390         # arduino's port
 MESSAGE = b"Hello, World!"
 
 sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
+
+sock.settimeout(2) #only wait 2 seconds for a resonse
 
 # receive 
-LOCAL_IP = '0.0.0.0'    
-LOCAL_PORT = 5566
-address = (LOCAL_IP, LOCAL_PORT)
-sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+#LOCAL_IP = ''    
+#LOCAL_PORT = 8080
+#address = (LOCAL_IP, LOCAL_PORT)
 
-sock.bind(address)
+#listen.bind(address)
 
-while True:
-    data, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
-    print("received message:", data)
+while (True):
+    sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
+
+    try:
+        rec_data, addr = client_socket.recvfrom(2048) #Read response from arduino
+        print(rec_data) #Print the response from Arduino
+    except:
+        pass
+
+    time.sleep(1)
+
+
+
+#while True:
+#    data, addr = listen.recvfrom(1024) # buffer size is 1024 bytes
+#    print("received message:", data)
 
