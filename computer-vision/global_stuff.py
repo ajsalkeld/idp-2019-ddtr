@@ -7,10 +7,7 @@ import time
 import socket
 import threading
 
-USE_VIDEO = True
-DO_MINES = True
-DO_ROBOT = True
-F_NAME = "pics/arena3-robot.jpg"
+USE_VIDEO = False
 
 # must be 3:4 H:W ratio
 RESOLUTION = np.array([640, 480]) # x, y

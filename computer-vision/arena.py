@@ -162,7 +162,6 @@ if __name__ == "__main__":
     print((y*2 -x).cv_tup)
 
 
-
 arena_mask_name = "pics/calib/arena3mask.jpg"
 ARENA_MASK = cv2.imread(arena_mask_name, cv2.IMREAD_GRAYSCALE)
 ARENA_MASK = cv2.resize(ARENA_MASK, tuple(RESOLUTION))
@@ -210,10 +209,10 @@ def draw_arena_features(img):
                         (MINE_AREA_BOT_RIGHT - MINE_AREA_DILATION).cv_tup, (255, 100, 100), 1)
 
     # live mine deposit
-    # cv2.rectangle(img, LIVE_DEPOSIT_TOP_LEFT.cv_tup, LIVE_DEPOSIT_BOT_RIGHT.cv_tup, (0, 0, 255), 2)
+    cv2.rectangle(img, LIVE_DEPOSIT_TOP_LEFT.cv_tup, LIVE_DEPOSIT_BOT_RIGHT.cv_tup, (0, 0, 255), 2)
 
     # dead mine deposit
-    # cv2.rectangle(img, DEAD_DEPOSIT_TOP_LEFT.cv_tup, DEAD_DEPOSIT_BOT_RIGHT.cv_tup, (0, 255, 0), 2)
+    cv2.rectangle(img, DEAD_DEPOSIT_TOP_LEFT.cv_tup, DEAD_DEPOSIT_BOT_RIGHT.cv_tup, (0, 255, 0), 2)
  
     # # bounding lines
     # cv2.rectangle(img, LHS_BOUND_LINE_TOP.cv_tup, LHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)

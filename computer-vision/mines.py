@@ -61,13 +61,11 @@ def find_mines(img, mask, img_x, img_y):
 
     # mpl_show(sobel)
 
-    ret, threshed = cv2.threshold(sobel, 30, 255, cv2.THRESH_BINARY)
+    ret, threshed = cv2.threshold(sobel, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
-    closed = cv2.morphologyEx(threshed, cv2.MORPH_CLOSE, np.ones((15, 15),np.uint8))
+    closed = cv2.morphologyEx(threshed, cv2.MORPH_CLOSE, np.ones((11, 11),np.uint8))
    
     # mpl_show(closed)
-
-    # closed = cv2.medianBlur(closed, 5)
 
     contours, hierarchy = cv2.findContours(closed, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -80,20 +78,15 @@ def find_mines(img, mask, img_x, img_y):
         M = cv2.moments(c)
         if M['m00'] > 0:
             centre = Point(idx=(img_x + M['m10']/M['m00'], img_y + M['m01']/M['m00']))
-            area = cv2.contourArea(c)
-            radius = area**0.5
 
-            if area < 500:
-                mine_deets.append((centre, radius))
-
+            radius = cv2.contourArea(c)**0.5
 
             # (x, y), radius = cv2.minEnclosingCircle(c)
             # centre = Point(idx=(img_x + x, img_y + y))
             # radius = round(radius)
 
-    # because it will think noise is mines without the contrast.
-    if len(mine_deets) > 10:
-        print("no mines.") 
-        mine_deets = []
+            mine_deets.append((centre, radius))
 
-    return mine_deets, closed
+ 
+
+    return mine_deets
