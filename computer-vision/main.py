@@ -2,6 +2,7 @@ from global_stuff import *
 
 import mines
 import robot
+import udpComms
 from arena import *
 pt = Point
 
@@ -96,3 +97,5 @@ else:
 
 
     do_stuff(cv2.resize(img, tuple(RESOLUTION)))
+
+udpComms.start()
