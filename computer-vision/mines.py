@@ -2,26 +2,6 @@ from global_stuff import *
 
 from arena import *
 
-def simple_brighten(img, a=1.0, b=0.0):
-    new_img = np.zeros_like(img)
-    for y in range(img.shape[1]):
-        for x in range(img.shape[0]):
-            new_img = np.clip(a*img[y,x] + b, 0, 255)
-    return new_img
-
-def apply_fn(img, fn):
-    
-    lookUpTable = np.empty((1,256), np.uint8)
-    for i in range(256):
-        lookUpTable[0,i] = np.clip(fn(i), 0, 255)
-    
-    return cv2.LUT(img, lookUpTable)
-
-
-def gamma_brighten(img, g=0.2):
-    return apply_fn(img, lambda x: np.clip(pow(x / 255.0, g) * 255.0, 0, 255))    
-
-
 def find_mines(img, mask, img_x, img_y):
 
     h, w = np.shape(img)
@@ -46,6 +26,7 @@ def find_mines(img, mask, img_x, img_y):
     sobel = cv2.Sobel(trunced, cv2.CV_64F, 0, 1, ksize=ksize)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksize, ksize))
     dilated_mask = cv2.erode(mask, kernel)
+
     sobel = cv2.multiply(sobel, img_as_float(dilated_mask))
     
     mean = sobel.mean()
@@ -69,7 +50,7 @@ def find_mines(img, mask, img_x, img_y):
 
     # closed = cv2.medianBlur(closed, 5)
 
-    contours, hierarchy = cv2.findContours(closed, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    contours, ret = cv2.findContours(closed, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
     cv2.drawContours(mask, contours, -1, (0, 0, 0))
 

@@ -91,6 +91,8 @@ if __name__ == "__main__":
 
     if USE_VIDEO:
 
+        # udpComms.setup()
+
         print("setting up camera... (takes a while!)")
         start_setup = time.time()
         print("initialising comms...")
@@ -167,5 +169,3 @@ if __name__ == "__main__":
 
         illustrate(img, mine_data)
         mpl_show(img)
-
-udpComms.start()

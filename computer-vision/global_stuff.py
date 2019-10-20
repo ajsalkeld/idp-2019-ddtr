@@ -7,10 +7,10 @@ import time
 import socket
 import threading
 
-USE_VIDEO = True
-DO_MINES = True
+USE_VIDEO = False
+DO_MINES = False
 DO_ROBOT = True
-F_NAME = "pics/arena3-robot.jpg"
+F_NAME = "pics/robot_mode2.jpg"
 
 # must be 3:4 H:W ratio
 RESOLUTION = np.array([640, 480]) # x, y
@@ -35,3 +35,44 @@ def cv2_cross(img, idx, size, colour, t=1):
     y, x = idx
     cv2.line(img, tuple([y - size, x - size]), tuple([y + size, x + size]), colour, t)
     cv2.line(img, tuple([y + size, x - size]), tuple([y - size, x + size]), colour, t)
+
+def simple_brighten(img, a=1.0, b=0.0):
+    new_img = np.zeros_like(img)
+    for y in range(img.shape[1]):
+        for x in range(img.shape[0]):
+            new_img = np.clip(a*img[y,x] + b, 0, 255)
+    return new_img
+
+
+def gamma_brighten(img, g=0.2):
+    return apply_fn(img, lambda x: np.clip(pow(x / 255.0, g) * 255.0, 0, 255))    
+
+
+
+def apply_fn(img, fn):
+    
+    lookUpTable = np.empty((1,256), np.uint8)
+    for i in range(256):
+        lookUpTable[0,i] = np.clip(fn(i), 0, 255)
+    
+    return cv2.LUT(img, lookUpTable)
+
+class Stopwatch():
+
+    def __init__(self):
+        self.t_start = 0
+
+    def start(self):
+        self.t_start = time.time()
+
+    def stop(self, print_result=True):
+        if self.t_start != 0:
+            delta_t = time.time() - self.t_start
+            self.t_start = 0
+            if print_result:
+                print(f"timer: {delta_t}s")
+
+            return delta_t
+        
+        return 0
+        
