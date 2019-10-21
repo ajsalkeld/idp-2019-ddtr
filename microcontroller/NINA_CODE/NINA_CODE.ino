@@ -17,12 +17,18 @@ unsigned int localPort = LOCALPORT;      // local port to listen on
 
 char* packetBuffer; //buffer to hold incoming packet
 
+Adafruit_MotorShield AFMS = Adafruit_MotorShield(); // Shield object
+Adafruit_DCMotor *rightMotor = AFMS.getMotor(1); // Motor object
+Adafruit_DCMotor *leftMotor = AFMS.getMotor(2); // Motor object
+
+
+
 void setup() {
   Serial.begin(9600);
   while (!Serial) {
     ; // Wait for USB serial to connect 
   }
-
+  AFMS.begin(); // Starts with default freq
   // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("Communication with WiFi module failed!");
@@ -40,6 +46,9 @@ void setup() {
     // wait 10 seconds for connection:
     delay(10000);
   }
+
+  rightMotor->setSpeed(MAX_SPEED);
+  leftMotor->setSpeed(MAX_SPEED);
 
   printWifiStatus();   // Prints wifi status
 
@@ -78,15 +87,31 @@ void loop() {
     Serial.println(command);
 
     if (command == "Hello from python") {
-      sendAcknowledgement();
+      sendAcknowledgement(packetBuffer, packetSize);
       // Connection message received
     }
     else if (command == "stop") {
-      sendAcknowledgement();
-      // Action command
+      sendAcknowledgement(packetBuffer, packetSize);
+      stopMotors();
+    }
+    else if (command == "run until") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      runUntilStop(NINA_FORWARDS);
+    }
+    else if (command == "reverse until") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      runUntilStop(NINA_BACKWARDS);
+    }
+    else if (command == "turn right until") {
+      sendAcknowledgement(packetBuffer,packetSize);
+      runUntilStop(RIGHTWARDS);
+    }
+    else if (command == "turn left until") {
+      sendAcknowledgement(packetBuffer,packetSize);
+      runUntilStop(LEFTWARDS);
     }
     else {
-      sendRefusal(packetBuffer, packetSize);
+      sendRefusal(packetBuffer, packetSize, command);
       // Message not recognised
     }
 
@@ -95,10 +120,13 @@ void loop() {
   }    
 }
 
-void sendAcknowledgement() {
+void sendAcknowledgement(char* packetBuffer, int packetSize) {
   // Send back acknowledgement
   Udp.beginPacket(remoteIP, remotePort);
-  Udp.write("ACK");
+  Udp.write("ACK: ");
+  for (int i = 0; i < packetSize; i++) {
+    Udp.write(packetBuffer[i]);
+  }
   Udp.endPacket();
   Serial.print("Sent acknowledgement to ");
   Serial.print(remoteIP);
@@ -106,7 +134,7 @@ void sendAcknowledgement() {
   Serial.println(remotePort);
 }
 
-void sendRefusal(char* packetBuffer, int packetSize) {
+void sendRefusal(char* packetBuffer, int packetSize, String command) {
   // Send back message that NINA doesn't understand
   Udp.beginPacket(remoteIP, remotePort);
   Udp.write("REFUSAL: ");
@@ -119,7 +147,7 @@ void sendRefusal(char* packetBuffer, int packetSize) {
   Serial.print(':');
   Serial.println(remotePort);
   Serial.print("About ");
-  Serial.println(*packetBuffer);
+  Serial.println(command);
 }
 
 void printWifiStatus() {
@@ -137,4 +165,35 @@ void printWifiStatus() {
   Serial.print("signal strength (RSSI):");
   Serial.print(rssi);
   Serial.println(" dBm");
+}
+
+void stopMotors() {
+  leftMotor->setSpeed(0);
+  rightMotor->setSpeed(0);
+  delay(250);
+  rightMotor->run(RELEASE);
+  leftMotor->run(RELEASE);
+}
+
+void runUntilStop(int direction, int timeToRun = 0) {
+  rightMotor->setSpeed(MAX_SPEED);
+  leftMotor->setSpeed(MAX_SPEED);
+  switch (direction) {
+    case RIGHTWARDS:
+      rightMotor->run(FORWARD);
+      leftMotor->run(FORWARD);
+      break;
+    case LEFTWARDS:
+      rightMotor->run(BACKWARD);
+      leftMotor->run(BACKWARD);
+      break;
+    case NINA_FORWARDS:
+      rightMotor->run(BACKWARD);
+      leftMotor->run(FORWARD);
+      break;
+    case NINA_BACKWARDS:
+      rightMotor->run(FORWARD);
+      leftMotor->run(BACKWARD);
+      break;
+  }
 }
