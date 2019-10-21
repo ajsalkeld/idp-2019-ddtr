@@ -7,10 +7,12 @@ import time
 import socket
 import threading
 
-USE_VIDEO = False
+USE_VIDEO = True
 DO_MINES = False
 DO_ROBOT = True
-F_NAME = "pics/robot_mode2.jpg"
+F_NAME = "robot_mode.jpg"
+
+
 
 # must be 3:4 H:W ratio
 RESOLUTION = np.array([640, 480]) # x, y
@@ -22,7 +24,7 @@ IDX_SCALE = RESOLUTION[0] / 640.0
 def mpl_show(img):
 
     if len(img.shape) > 2:
-        b, g, r=cv2.split(img)
+        b, g, r = cv2.split(img)
         img_mpl = cv2.merge([r, g, b])
     else:
         img_mpl = img

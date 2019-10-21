@@ -61,8 +61,8 @@ mine_vid_params = {
 }
 
 robot_vid_params = {
-    "saturation" : {"idx" : 12, "setval" : 64.0},
-    "exposure" : {"idx" : 15, "setval" : -4.0} # this sets resolution to 1/2
+    "saturation" : {"idx" : 12, "setval" : 28.0},
+    "exposure" : {"idx" : 15, "setval" : -4.0} # this sets resolution lower
 }
 
 # USE THESE WHEN DONE SO OTHER PEOPLE DON'T REALISE
@@ -99,17 +99,19 @@ if __name__ == "__main__":
         cap = cv2.VideoCapture(0)
         print("initialising comms done.")
         set_params(cap, general_vid_params)
+        set_params(cap, robot_vid_params)
+
         end_setup = time.time()
 
         print(f"done. setup took {end_setup - start_setup} seconds (jheez)")
 
-        mines_every = 60
+        mines_every = 150
         i = -2
         mine_data = []
         while True:
             i += 1
 
-            if i == mines_every or i == -1 and DO_MINES:
+            if (i == mines_every or i == -1) and DO_MINES:
                 i = 0
 
                 set_params(cap, mine_vid_params)
@@ -130,17 +132,23 @@ if __name__ == "__main__":
 
             elif DO_ROBOT:
                 r_frame = get_frame(cap)
+
                 cv2.imwrite("robot_mode.jpg", r_frame)
 
+                # r_frame = cv2.resize(r_frame, tuple(RESOLUTION))
+                
+                r_frame = cv2.bitwise_and(r_frame, ROBOT_MASK)
 
-                r_frame = cv2.resize(r_frame, tuple(RESOLUTION))
+                res = robot.detect_robot(r_frame)
 
-
-                robot.detect_robot(r_frame)
+                if res is not None:
+                    r_frame = res
 
                 to_show = illustrate(r_frame, mine_data)
 
                 show_img(to_show)
+
+                # time.sleep(2)
 
 
             if cv2.waitKey(1) & 0xFF == ord('q'):

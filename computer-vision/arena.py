@@ -162,10 +162,14 @@ if __name__ == "__main__":
     print((y*2 -x).cv_tup)
 
 
+robot_mask_name = "pics/calib/robot_mode_mask.jpg"
+ROBOT_MASK = cv2.imread(robot_mask_name)
+ROBOT_MASK = cv2.resize(ROBOT_MASK, tuple(RESOLUTION))
 
 arena_mask_name = "pics/calib/arena3mask.jpg"
 ARENA_MASK = cv2.imread(arena_mask_name, cv2.IMREAD_GRAYSCALE)
 ARENA_MASK = cv2.resize(ARENA_MASK, tuple(RESOLUTION))
+
 
 TAPE_THICKNESS = 0.018
 
