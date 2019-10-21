@@ -17,12 +17,18 @@ unsigned int localPort = LOCALPORT;      // local port to listen on
 
 char* packetBuffer; //buffer to hold incoming packet
 
+Adafruit_MotorShield AFMS = Adafruit_MotorShield(); // Shield object
+Adafruit_DCMotor *rightMotor = AFMS.getMotor(1); // Motor object
+Adafruit_DCMotor *leftMotor = AFMS.getMotor(2); // Motor object
+
+
+
 void setup() {
   Serial.begin(9600);
   while (!Serial) {
     ; // Wait for USB serial to connect 
   }
-
+  AFMS.begin(); // Starts with default freq
   // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("Communication with WiFi module failed!");
@@ -40,6 +46,9 @@ void setup() {
     // wait 10 seconds for connection:
     delay(10000);
   }
+
+  rightMotor->setSpeed(MAX_SPEED);
+  leftMotor->setSpeed(MAX_SPEED);
 
   printWifiStatus();   // Prints wifi status
 
@@ -83,7 +92,23 @@ void loop() {
     }
     else if (command == "stop") {
       sendAcknowledgement(packetBuffer, packetSize);
-      // Action command
+      stopMotors();
+    }
+    else if (command == "run until") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      runUntilStop(NINA_FORWARDS);
+    }
+    else if (command == "reverse until") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      runUntilStop(NINA_BACKWARDS);
+    }
+    else if (command == "turn right until") {
+      sendAcknowledgement(packetBuffer,packetSize);
+      runUntilStop(RIGHTWARDS);
+    }
+    else if (command == "turn left until") {
+      sendAcknowledgement(packetBuffer,packetSize);
+      runUntilStop(LEFTWARDS);
     }
     else {
       sendRefusal(packetBuffer, packetSize, command);
@@ -140,4 +165,35 @@ void printWifiStatus() {
   Serial.print("signal strength (RSSI):");
   Serial.print(rssi);
   Serial.println(" dBm");
+}
+
+void stopMotors() {
+  leftMotor->setSpeed(0);
+  rightMotor->setSpeed(0);
+  delay(250);
+  rightMotor->run(RELEASE);
+  leftMotor->run(RELEASE);
+}
+
+void runUntilStop(int direction, int timeToRun = 0) {
+  rightMotor->setSpeed(MAX_SPEED);
+  leftMotor->setSpeed(MAX_SPEED);
+  switch (direction) {
+    case RIGHTWARDS:
+      rightMotor->run(FORWARD);
+      leftMotor->run(FORWARD);
+      break;
+    case LEFTWARDS:
+      rightMotor->run(BACKWARD);
+      leftMotor->run(BACKWARD);
+      break;
+    case NINA_FORWARDS:
+      rightMotor->run(BACKWARD);
+      leftMotor->run(FORWARD);
+      break;
+    case NINA_BACKWARDS:
+      rightMotor->run(FORWARD);
+      leftMotor->run(BACKWARD);
+      break;
+  }
 }
