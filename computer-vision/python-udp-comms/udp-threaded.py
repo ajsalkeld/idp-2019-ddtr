@@ -3,11 +3,12 @@
 
 import socket
 import threading
+import time
 
 # bind all IP
 HOST = '0.0.0.0' 
 # Listen on Port 
-PORT = 44444 
+PORT = 44445 
 #Size of receive buffer   
 BUFFER_SIZE = 1024    
 # Create a TCP/IP socket
@@ -16,7 +17,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind((HOST, PORT))
 
 def rxThread():
-    s.sendto(b"Hello from python", ("192.168.43.82", 2390))
+    s.sendto(b"Hello from python", ("192.168.137.46", 2390))
     while True:
         # Receive BUFFER_SIZE bytes data
         # data is a list with 2 elements
@@ -33,6 +34,10 @@ def rxThread():
 rxthread = threading.Thread(target=rxThread)
 rxthread.start()
 
-s.sendto(b"stop", ("192.168.43.82", 2390))
+time.sleep(1)
 
-s.sendto(b"afkndsk", ("192.168.43.82", 2390))
+s.sendto(b"stop", ("192.168.137.46", 2390))
+
+time.sleep(0.4)
+
+s.sendto(b"afkndsk", ("192.168.137.46", 2390))
