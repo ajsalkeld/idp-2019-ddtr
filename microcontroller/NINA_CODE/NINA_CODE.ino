@@ -78,15 +78,15 @@ void loop() {
     Serial.println(command);
 
     if (command == "Hello from python") {
-      sendAcknowledgement();
+      sendAcknowledgement(packetBuffer, packetSize);
       // Connection message received
     }
     else if (command == "stop") {
-      sendAcknowledgement();
+      sendAcknowledgement(packetBuffer, packetSize);
       // Action command
     }
     else {
-      sendRefusal(packetBuffer, packetSize);
+      sendRefusal(packetBuffer, packetSize, command);
       // Message not recognised
     }
 
@@ -95,10 +95,13 @@ void loop() {
   }    
 }
 
-void sendAcknowledgement() {
+void sendAcknowledgement(char* packetBuffer, int packetSize) {
   // Send back acknowledgement
   Udp.beginPacket(remoteIP, remotePort);
-  Udp.write("ACK");
+  Udp.write("ACK: ");
+  for (int i = 0; i < packetSize; i++) {
+    Udp.write(packetBuffer[i]);
+  }
   Udp.endPacket();
   Serial.print("Sent acknowledgement to ");
   Serial.print(remoteIP);
@@ -106,7 +109,7 @@ void sendAcknowledgement() {
   Serial.println(remotePort);
 }
 
-void sendRefusal(char* packetBuffer, int packetSize) {
+void sendRefusal(char* packetBuffer, int packetSize, String command) {
   // Send back message that NINA doesn't understand
   Udp.beginPacket(remoteIP, remotePort);
   Udp.write("REFUSAL: ");
@@ -119,7 +122,7 @@ void sendRefusal(char* packetBuffer, int packetSize) {
   Serial.print(':');
   Serial.println(remotePort);
   Serial.print("About ");
-  Serial.println(*packetBuffer);
+  Serial.println(command);
 }
 
 void printWifiStatus() {
