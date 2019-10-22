@@ -97,19 +97,26 @@ void loop() {
       sendAcknowledgement(packetBuffer, packetSize);
       stopMotors();
     }
-    else if (command == "run until") {
+    else if (command.indexOf("run until") >= 0) {
       sendAcknowledgement(packetBuffer, packetSize);
-      runUntilStop(NINA_FORWARDS);
+      int posCommand = command.indexOf("run until");
+      if (posCommand > 0) {
+        String numberPart = command.substring(0,posCommand);
+        runUntilStop(NINA_FORWARDS, numberPart.toInt());
+      }
+      else {
+        runUntilStop(NINA_FORWARDS);
+      }
     }
-    else if (command == "reverse until") {
+    else if (command.indexOf("reverse until") >= 0) {
       sendAcknowledgement(packetBuffer, packetSize);
       runUntilStop(NINA_BACKWARDS);
     }
-    else if (command == "turn right until") {
+    else if (command.indexOf("turn right until") >= 0) {
       sendAcknowledgement(packetBuffer,packetSize);
       runUntilStop(RIGHTWARDS);
     }
-    else if (command == "turn left until") {
+    else if (command.indexOf("turn left until") >= 0) {
       sendAcknowledgement(packetBuffer,packetSize);
       runUntilStop(LEFTWARDS);
     }
@@ -215,7 +222,7 @@ void runUntilStop(int direction, int timeToRun) {
       break;
   }
   if (timeToRun > 0) {
-    timer.setTimeOut(timeToRun, stopMotors);
+    timer.setTimeout(timeToRun, stopMotors);
   }
 }
 
