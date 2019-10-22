@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <Adafruit_MotorShield.h>
 #include <Servo.h>
+#include <SimpleTimer.h>
 
 
 #define LOCALPORT 2390

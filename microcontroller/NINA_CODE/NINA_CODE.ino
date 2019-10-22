@@ -22,7 +22,7 @@ Adafruit_DCMotor *rightMotor = AFMS.getMotor(1); // Motor object
 Adafruit_DCMotor *leftMotor = AFMS.getMotor(2); // Motor object
 
 Servo servo;  // create servo object to control a servo
-
+SimpleTimer timer; // create timer object for stopping after time
 
 void setup() {
   Serial.begin(9600);
@@ -62,7 +62,7 @@ void loop() {
   // receive communications with commands for navigation
   // interrupt this loop to execute commands
   // and if ultrasonic detects a mine
-
+  timer.run();
   int packetSize = Udp.parsePacket();
   // If packet is received
   if (packetSize) {
@@ -121,11 +121,8 @@ void loop() {
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(DROP);
       delay(30);
-      runUntilStop(NINA_BACKWARDS);
-      delay(500);
+      runUntilStop(NINA_BACKWARDS, 500);
       liftFork();
-      delay(250);
-      stopMotors();
     }
     else if (command == "lower fork") {
       sendAcknowledgement(packetBuffer, packetSize);
@@ -195,7 +192,7 @@ void stopMotors() {
   rightMotor->run(RELEASE);
   leftMotor->run(RELEASE);
 }
-
+// timeToRun in millieconds
 void runUntilStop(int direction, int timeToRun) {
   rightMotor->setSpeed(MAX_SPEED);
   leftMotor->setSpeed(MAX_SPEED);
@@ -216,6 +213,9 @@ void runUntilStop(int direction, int timeToRun) {
       rightMotor->run(BACKWARD);
       leftMotor->run(FORWARD);
       break;
+  }
+  if (timeToRun > 0) {
+    timer.setTimeOut(timeToRun, stopMotors);
   }
 }
 
