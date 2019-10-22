@@ -30,8 +30,11 @@ void setup() {
     ; // Wait for USB serial to connect 
   }
   AFMS.begin(); // Starts with default freq
-  servo.attach(9);  // attaches the servo on pin 9 to the servo object
+  servo.attach(SERVO_PIN);  // attaches the servo on pin 9 to the servo object
   servo.write(130);
+
+  pinMode(TRIGGER_PIN, OUTPUT); // Sets the trigPin as an Output
+  pinMode(ECHO_PIN, INPUT); // Sets the echoPin as an Input
   // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("Communication with WiFi module failed!");
@@ -56,6 +59,7 @@ void setup() {
   printWifiStatus();   // Prints wifi status
 
   Udp.begin(localPort);
+  timer.setInterval(ultrasonicChecker, 1000); // check ultrasonic every second
 }
 
 void loop() {
@@ -250,5 +254,23 @@ void lowerFork(int dropOrPick) {
         delay(30);                       // waits 15ms for the servo to reach the position
       }
       break;
+  }
+}
+
+void ultrasonicChecker() {
+  if (!carryingMine) {
+    // Clears the trigPin
+    digitalWrite(TRIGGER_PIN, LOW);
+    delayMicroseconds(2);
+    // Sets the trigPin on HIGH state for 10 micro seconds
+    digitalWrite(TRIGGER_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIGGER_PIN, LOW);
+    // Reads the echoPin, returns the sound wave travel time in microseconds
+    ultrasonicDuration = pulseIn(ECHO_PIN, HIGH);
+    // Calculating the distance
+    distance= ultrasonicDuration*0.034/2;
+    // Prints the distance on the Serial Monitor
+    Serial.print("Distance: ");
   }
 }
