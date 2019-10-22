@@ -188,12 +188,12 @@ void runUntilStop(int direction, int timeToRun = 0) {
       leftMotor->run(BACKWARD);
       break;
     case NINA_FORWARDS:
-      rightMotor->run(BACKWARD);
-      leftMotor->run(FORWARD);
-      break;
-    case NINA_BACKWARDS:
       rightMotor->run(FORWARD);
       leftMotor->run(BACKWARD);
+      break;
+    case NINA_BACKWARDS:
+      rightMotor->run(BACKWARD);
+      leftMotor->run(FORWARD);
       break;
   }
 }
