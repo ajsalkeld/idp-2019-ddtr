@@ -21,6 +21,7 @@ Adafruit_MotorShield AFMS = Adafruit_MotorShield(); // Shield object
 Adafruit_DCMotor *rightMotor = AFMS.getMotor(1); // Motor object
 Adafruit_DCMotor *leftMotor = AFMS.getMotor(2); // Motor object
 
+Servo servo;  // create servo object to control a servo
 
 
 void setup() {
@@ -29,6 +30,8 @@ void setup() {
     ; // Wait for USB serial to connect 
   }
   AFMS.begin(); // Starts with default freq
+  servo.attach(9);  // attaches the servo on pin 9 to the servo object
+  servo.write(130);
   // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("Communication with WiFi module failed!");
@@ -110,6 +113,24 @@ void loop() {
       sendAcknowledgement(packetBuffer,packetSize);
       runUntilStop(LEFTWARDS);
     }
+    else if (command == "lift fork") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      liftFork();
+    }
+    else if (command == "drop mine") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      lowerFork(DROP);
+      delay(30);
+      runUntilStop(NINA_BACKWARDS);
+      delay(500);
+      liftFork();
+      delay(250);
+      stopMotors();
+    }
+    else if (command == "lower fork") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      lowerFork(PICK_UP);
+    }
     else {
       sendRefusal(packetBuffer, packetSize, command);
       // Message not recognised
@@ -175,7 +196,7 @@ void stopMotors() {
   leftMotor->run(RELEASE);
 }
 
-void runUntilStop(int direction, int timeToRun = 0) {
+void runUntilStop(int direction, int timeToRun) {
   rightMotor->setSpeed(MAX_SPEED);
   leftMotor->setSpeed(MAX_SPEED);
   switch (direction) {
@@ -194,6 +215,33 @@ void runUntilStop(int direction, int timeToRun = 0) {
     case NINA_BACKWARDS:
       rightMotor->run(BACKWARD);
       leftMotor->run(FORWARD);
+      break;
+  }
+}
+
+void liftFork() {
+  for (int pos = 180; pos >= 130; pos -= 1) { // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    servo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(30);                       // waits 15ms for the servo to reach the position
+  }
+}
+
+void lowerFork(int dropOrPick) {
+  switch (dropOrPick) {
+    case PICK_UP:
+      for (int pos = 130; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
+        // in steps of 1 degree
+        servo.write(pos);              // tell servo to go to position in variable 'pos'
+        delay(30);                       // waits 15ms for the servo to reach the position
+      }
+      break;
+    case DROP:
+      for (int pos = 130; pos <= 165; pos += 1) { // goes from 0 degrees to 180 degrees
+        // in steps of 1 degree
+        servo.write(pos);              // tell servo to go to position in variable 'pos'
+        delay(30);                       // waits 15ms for the servo to reach the position
+      }
       break;
   }
 }
