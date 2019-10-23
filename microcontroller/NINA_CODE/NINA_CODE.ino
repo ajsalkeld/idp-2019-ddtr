@@ -17,11 +17,14 @@ unsigned int localPort = LOCALPORT;      // local port to listen on
 
 char* packetBuffer; //buffer to hold incoming packet
 
+int stopTimerId;
+
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); // Shield object
 Adafruit_DCMotor *rightMotor = AFMS.getMotor(1); // Motor object
 Adafruit_DCMotor *leftMotor = AFMS.getMotor(2); // Motor object
 
-
+Servo servo;  // create servo object to control a servo
+SimpleTimer timer; // create timer object for stopping after time
 
 void setup() {
   Serial.begin(9600);
@@ -29,6 +32,11 @@ void setup() {
     ; // Wait for USB serial to connect 
   }
   AFMS.begin(); // Starts with default freq
+  servo.attach(SERVO_PIN);  // attaches the servo on pin 9 to the servo object
+  servo.write(130);
+
+  pinMode(TRIGGER_PIN, OUTPUT); // Sets the trigPin as an Output
+  pinMode(ECHO_PIN, INPUT); // Sets the echoPin as an Input
   // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("Communication with WiFi module failed!");
@@ -53,13 +61,14 @@ void setup() {
   printWifiStatus();   // Prints wifi status
 
   Udp.begin(localPort);
+  timer.setInterval(ultrasonicChecker, 1000); // check ultrasonic every second
 }
 
 void loop() {
   // receive communications with commands for navigation
   // interrupt this loop to execute commands
   // and if ultrasonic detects a mine
-
+  timer.run();
   int packetSize = Udp.parsePacket();
   // If packet is received
   if (packetSize) {
@@ -94,21 +103,43 @@ void loop() {
       sendAcknowledgement(packetBuffer, packetSize);
       stopMotors();
     }
-    else if (command == "run until") {
+    else if (command.indexOf("run until") >= 0) {
       sendAcknowledgement(packetBuffer, packetSize);
-      runUntilStop(NINA_FORWARDS);
+      int posCommand = command.indexOf("run until");
+      if (posCommand > 0) {
+        String numberPart = command.substring(0,posCommand);
+        runUntilStop(NINA_FORWARDS, numberPart.toInt());
+      }
+      else {
+        runUntilStop(NINA_FORWARDS);
+      }
     }
-    else if (command == "reverse until") {
+    else if (command.indexOf("reverse until") >= 0) {
       sendAcknowledgement(packetBuffer, packetSize);
       runUntilStop(NINA_BACKWARDS);
     }
-    else if (command == "turn right until") {
+    else if (command.indexOf("turn right until") >= 0) {
       sendAcknowledgement(packetBuffer,packetSize);
       runUntilStop(RIGHTWARDS);
     }
-    else if (command == "turn left until") {
+    else if (command.indexOf("turn left until") >= 0) {
       sendAcknowledgement(packetBuffer,packetSize);
       runUntilStop(LEFTWARDS);
+    }
+    else if (command == "lift fork") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      liftFork();
+    }
+    else if (command == "drop mine") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      lowerFork(DROP);
+      delay(30);
+      runUntilStop(NINA_BACKWARDS, 500);
+      liftFork();
+    }
+    else if (command == "lower fork") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      lowerFork(PICK_UP);
     }
     else {
       sendRefusal(packetBuffer, packetSize, command);
@@ -173,9 +204,10 @@ void stopMotors() {
   delay(250);
   rightMotor->run(RELEASE);
   leftMotor->run(RELEASE);
+  if (stopTimerId) timer.deleteTimer(stopTimerId);
 }
-
-void runUntilStop(int direction, int timeToRun = 0) {
+// timeToRun in millieconds
+void runUntilStop(int direction, int timeToRun) {
   rightMotor->setSpeed(MAX_SPEED);
   leftMotor->setSpeed(MAX_SPEED);
   switch (direction) {
@@ -188,12 +220,60 @@ void runUntilStop(int direction, int timeToRun = 0) {
       leftMotor->run(BACKWARD);
       break;
     case NINA_FORWARDS:
-      rightMotor->run(BACKWARD);
-      leftMotor->run(FORWARD);
-      break;
-    case NINA_BACKWARDS:
       rightMotor->run(FORWARD);
       leftMotor->run(BACKWARD);
       break;
+    case NINA_BACKWARDS:
+      rightMotor->run(BACKWARD);
+      leftMotor->run(FORWARD);
+      break;
+  }
+  if (timeToRun > 0) {
+    stopTimerId = timer.setTimeout(timeToRun, stopMotors);
+  }
+}
+
+void liftFork() {
+  for (int pos = 180; pos >= 130; pos -= 1) { // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    servo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(30);                       // waits 15ms for the servo to reach the position
+  }
+}
+
+void lowerFork(int dropOrPick) {
+  switch (dropOrPick) {
+    case PICK_UP:
+      for (int pos = 130; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
+        // in steps of 1 degree
+        servo.write(pos);              // tell servo to go to position in variable 'pos'
+        delay(30);                       // waits 15ms for the servo to reach the position
+      }
+      break;
+    case DROP:
+      for (int pos = 130; pos <= 165; pos += 1) { // goes from 0 degrees to 180 degrees
+        // in steps of 1 degree
+        servo.write(pos);              // tell servo to go to position in variable 'pos'
+        delay(30);                       // waits 15ms for the servo to reach the position
+      }
+      break;
+  }
+}
+
+void ultrasonicChecker() {
+  if (!carryingMine) {
+    // Clears the trigPin
+    digitalWrite(TRIGGER_PIN, LOW);
+    delayMicroseconds(2);
+    // Sets the trigPin on HIGH state for 10 micro seconds
+    digitalWrite(TRIGGER_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIGGER_PIN, LOW);
+    // Reads the echoPin, returns the sound wave travel time in microseconds
+    ultrasonicDuration = pulseIn(ECHO_PIN, HIGH);
+    // Calculating the distance
+    distance= ultrasonicDuration*0.034/2;
+    // Prints the distance on the Serial Monitor
+    Serial.print("Distance: ");
   }
 }
