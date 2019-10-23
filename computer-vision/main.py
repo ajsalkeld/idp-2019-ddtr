@@ -65,7 +65,7 @@ robot_vid_params = {
     "exposure" : {"idx" : 15, "setval" : -4.0} # this sets resolution lower
 }
 
-# USE THESE WHEN DONE SO OTHER PEOPLE DON'T REALISE
+# USE THESE WHEN DONE SO OTHER PEOPLE DON'T REALISE (old camera exposure)
 default_vid_params = {
     "saturation" : {"idx" : 12, "setval" : 28.0},
     "exposure" : {"idx" : 15, "setval" : -7.0}

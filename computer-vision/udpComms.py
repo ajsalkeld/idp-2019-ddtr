@@ -21,7 +21,7 @@ def rxThread():
         # Receive BUFFER_SIZE bytes data
         # data is a list with 2 elements
         # first is data
-        #second is client address
+        # second is client address
         data = s.recvfrom(BUFFER_SIZE)
         if data:
             # print received data

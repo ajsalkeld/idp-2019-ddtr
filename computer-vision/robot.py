@@ -125,8 +125,8 @@ class Robot():
 robot = Robot()
 
 
-SQRT2 = 2**0.5
-_1_SQRT2 = 1/SQRT2
+SQRT2 = 2**0.5 #correct
+_1_SQRT2 = 1/SQRT2 #correct
 
 
 def get_line_params(contour):
