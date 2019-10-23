@@ -1,36 +1,47 @@
 from global_stuff import *
 from arena import *
+import udpComms as udpc
+
+# udpc.setup()
+
 pt = Point
 
 HUE_NORMALISE = 179.0/360.0
 
-# hue values
-TURQOISE = np.array([180, 220])
-VIOLET = np.array([230, 270])
-PINK = np.array([270, 310])
+# # hue values
+# TURQOISE = np.array([180, 220])
+# VIOLET = np.array([230, 270])
+# PINK = np.array([270, 310])
 
-# potentially better (more distributed):
-YELLOW = np.array([35, 65])
-BLUE = np.array([190, 230])
-PURPLE = np.array([250, 290])
+# # potentially better (more distributed):
+# YELLOW = np.array([35, 65])
+# BLUE = np.array([190, 230])
+# PURPLE = np.array([250, 290])
 
 # tape
 RED1 = np.array([0, 20])
 RED2 = np.array([340, 360])
 
 
-
+MAX_THETA_RATE = 45*DEG_TO_RAD # 90 degrees per second
 
 class Robot():
 
     def __init__(self):
-        self.w_m = 0.19
-        self.h_m = 0.15
+        self.w_m = 0.175
+        self.h_m = 0.155
         self.dims = np.array([self.h_m, self.w_m])
 
         self.origin_history = []
         self.axes_history = []
         self.timestamps = []
+
+        # target rotation and position
+        self.t_rot = None
+        self.t_pos = None
+
+        self.theta_err = None
+        self.latest_cmd = None
 
     def draw_coord_sys(self, img):
 
@@ -46,7 +57,10 @@ class Robot():
         img = draw_line_from_params(img, origin, axes[1], (0, 255, 255))
         
         cv2_cross(img, pt(idx=origin).idx, 3, (255, 0, 255), 2)
+        cv2_cross(img, pt(pos=self.get_centre_coords()).idx, 3, (255, 255, 255), 1)
 
+        cv2_text(img, "latest command: " + str(self.latest_cmd), (50, 50), (255, 255, 255))
+        cv2_text(img, "rotation error: " + str(self.theta_err), (50, 100), (255, 255, 255))
 
         # mpl_show(robot_img)
         if not USE_VIDEO:
@@ -57,18 +71,27 @@ class Robot():
 
     def get_pos_estimate(self):
 
-        if len(self.origin_history) < 2:
+        if len(self.origin_history) < 1: # make this 3
             return None
 
         # punish records which were a long time ago
         weights = np.exp(8.0*(np.array(self.timestamps) - self.timestamps[-1]))      
-        print(weights)
+        # print(weights)
 
         def weighted_ave(arr):
             return sum([weights[i] * arr[i] for i in range(len(weights))])/sum(weights)
     
         # print(self.origin_history)
         return weighted_ave(self.origin_history), weighted_ave(self.axes_history)
+
+
+    def get_centre_coords(self):
+
+        origin, dirs = self.get_pos_estimate()
+        
+        offset = (self.dims - 0.005)/2
+
+        return pt(idx=origin).pos + np.matmul(dirs, offset)
 
 
     def record_pos(self, origin, axes):
@@ -105,6 +128,7 @@ class Robot():
             del self.timestamps[0]
 
 
+
     def update_pos(self, img):
         img = cv2.bitwise_and(img, ROBOT_MASK)
 
@@ -115,15 +139,76 @@ class Robot():
 
         origin, axes = res
 
-        # print("found at", origin, axes)
-
         self.record_pos(origin, axes)
 
 
-    
+    # in real world coords
+    def set_target(self, pos, rot):
+        self.t_pos = pos
+
+        if abs(1.0-pythag(rot)) > 0.01:
+            rot = rot / pythag(rot)
+
+        self.t_rot = rot
+
+
+
+    def do_control(self):
+        
+        vals = self.get_pos_estimate()
+
+        if vals is None:
+            return
+
+        real_rot = vals[1][1] # heading vector
+        real_pos = self.get_centre_coords()
+
+        sign = lambda x: x/abs(x) if abs(x) > 0.000001 else 1
+
+        # print("target_rot", self.t_rot)
+        # print("actual_rot", real_rot)
+
+        if self.t_rot is not None:
+            d_prod = np.dot(self.t_rot, real_rot)
+            c_prod = self.t_rot[0] * real_rot[1] - self.t_rot[1] * real_rot[0]
+
+            # print("c_prod", c_prod)
+
+            theta_err = np.arccos(d_prod)
+            if c_prod < 0:
+                theta_err = -theta_err
+
+            self.theta_err = theta_err
+            # print("theta error (rad):", theta_err)
+
+            if abs(theta_err) > DEG_TO_RAD * 10:
+
+                # TODO: stop moving forward
+                
+                if abs(theta_err) > DEG_TO_RAD * 15:
+                    theta_rate = - MAX_THETA_RATE * sign(theta_err)
+                
+                else:
+                    theta_rate = - MAX_THETA_RATE * theta_err / (DEG_TO_RAD * 15)
+
+                if theta_rate > 0:
+                    self.send_cmd("turn right until")
+
+                else:
+                    self.send_cmd("turn left until")
+
+                
+            else:
+                self.send_cmd("stop")
+
+
+    def send_cmd(self, cmd_txt):
+        if cmd_txt != self.latest_cmd:
+            udpc.sendCommand(cmd_txt.encode())
+            self.latest_cmd = cmd_txt
+
 
 robot = Robot()
-
 
 SQRT2 = 2**0.5
 _1_SQRT2 = 1/SQRT2

@@ -141,7 +141,10 @@ if __name__ == "__main__":
                 robot.update_pos(r_frame)
                 
                 robot.draw_coord_sys(r_frame)
-                
+
+                robot.set_target(np.array([1.0, 1.0]), np.array([1.0, 0.0]))
+
+                robot.do_control()
 
                 to_show = illustrate(r_frame, mine_data)
 
@@ -168,7 +171,7 @@ if __name__ == "__main__":
 
         if DO_ROBOT:
             robot.update_pos(img)
-
+            robot.draw_coord_sys(img)
 
         mine_data = []
         if DO_MINES:
