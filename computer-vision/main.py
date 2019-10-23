@@ -1,7 +1,7 @@
 from global_stuff import *
 
 import mines
-import robot
+from robot import robot
 import udpComms
 from arena import *
 pt = Point
@@ -65,7 +65,7 @@ robot_vid_params = {
     "exposure" : {"idx" : 15, "setval" : -4.0} # this sets resolution lower
 }
 
-# USE THESE WHEN DONE SO OTHER PEOPLE DON'T REALISE
+# USE THESE WHEN DONE SO OTHER PEOPLE DON'T REALISE (old camera exposure)
 default_vid_params = {
     "saturation" : {"idx" : 12, "setval" : 28.0},
     "exposure" : {"idx" : 15, "setval" : -7.0}
@@ -137,12 +137,11 @@ if __name__ == "__main__":
 
                 # r_frame = cv2.resize(r_frame, tuple(RESOLUTION))
                 
-                r_frame = cv2.bitwise_and(r_frame, ROBOT_MASK)
 
-                res = robot.detect_robot(r_frame)
-
-                if res is not None:
-                    r_frame = res
+                robot.update_pos(r_frame)
+                
+                robot.draw_coord_sys(r_frame)
+                
 
                 to_show = illustrate(r_frame, mine_data)
 
@@ -168,7 +167,7 @@ if __name__ == "__main__":
         img = cv2.resize(img, tuple(RESOLUTION))
 
         if DO_ROBOT:
-            robot.detect_robot(img)
+            robot.update_pos(img)
 
 
         mine_data = []

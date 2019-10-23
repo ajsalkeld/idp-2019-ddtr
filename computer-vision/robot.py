@@ -1,4 +1,6 @@
 from global_stuff import *
+from arena import *
+pt = Point
 
 HUE_NORMALISE = 179.0/360.0
 
@@ -16,12 +18,116 @@ PURPLE = np.array([250, 290])
 RED1 = np.array([0, 20])
 RED2 = np.array([340, 360])
 
-DS_RATIO = 1
 
 
 
-SQRT2 = 2**0.5
-_1_SQRT2 = 1/SQRT2
+class Robot():
+
+    def __init__(self):
+        self.w_m = 0.19
+        self.h_m = 0.15
+        self.dims = np.array([self.h_m, self.w_m])
+
+        self.origin_history = []
+        self.axes_history = []
+        self.timestamps = []
+
+    def draw_coord_sys(self, img):
+
+        est = self.get_pos_estimate()
+
+        if est is None:
+            return img
+        
+        origin, axes = est
+
+        # x cyan, y yellow, magenta origin
+        img = draw_line_from_params(img, origin, axes[0], (255, 255, 0)) 
+        img = draw_line_from_params(img, origin, axes[1], (0, 255, 255))
+        
+        cv2_cross(img, pt(idx=origin).idx, 3, (255, 0, 255), 2)
+
+
+        # mpl_show(robot_img)
+        if not USE_VIDEO:
+            mpl_show(img)
+
+        return img
+
+
+    def get_pos_estimate(self):
+
+        if len(self.origin_history) < 2:
+            return None
+
+        # punish records which were a long time ago
+        weights = np.exp(8.0*(np.array(self.timestamps) - self.timestamps[-1]))      
+        print(weights)
+
+        def weighted_ave(arr):
+            return sum([weights[i] * arr[i] for i in range(len(weights))])/sum(weights)
+    
+        # print(self.origin_history)
+        return weighted_ave(self.origin_history), weighted_ave(self.axes_history)
+
+
+    def record_pos(self, origin, axes):
+
+        ts = time.time()
+        outrageous_speed = 0.4 # m/s
+
+        est = self.get_pos_estimate()
+
+        if est is None:
+            # print("pos history", self.origin_history)
+            # print("recording at", origin, axes)
+
+            self.origin_history.append(origin)
+            self.axes_history.append(axes)
+            self.timestamps.append(ts)
+        
+        else:
+            distance = pythag(pt(idx=origin).pos - pt(idx=est[0]).pos)
+
+            if distance > 0.05 and distance / (ts - self.timestamps[0]) > outrageous_speed:
+                print("didn't record - moved too fast")
+                return
+
+            else:
+                # print("recording at", origin, axes)
+                self.origin_history.append(origin)
+                self.axes_history.append(axes)
+                self.timestamps.append(ts)
+
+        if len(self.origin_history) > 4:
+            del self.origin_history[0]
+            del self.axes_history[0]
+            del self.timestamps[0]
+
+
+    def update_pos(self, img):
+        img = cv2.bitwise_and(img, ROBOT_MASK)
+
+        res = detect_robot(img)
+
+        if res is None:
+            return img
+
+        origin, axes = res
+
+        # print("found at", origin, axes)
+
+        self.record_pos(origin, axes)
+
+
+    
+
+robot = Robot()
+
+
+SQRT2 = 2**0.5 #correct
+_1_SQRT2 = 1/SQRT2 #correct
+
 
 def get_line_params(contour):
     params = cv2.fitLine(contour, cv2.DIST_L2,0,0.01,0.01)
@@ -30,12 +136,20 @@ def get_line_params(contour):
     return params
 
 
-def draw_line_from_params(img, line_v, line_pt, colour):
+def draw_line_from_params(img, line_pt, line_v, colour):
     [vx, vy] = line_v
     [x, y] = line_pt
     rows,cols = img.shape[:2]
-    cv2_cross(img, (int(x + 30*vx), int(y + 30*vy)), 3, colour, 1)
-    return cv2.line(img, (int(x - 30*vx), int(y - 30*vy)), (int(x + 30*vx), int(y + 30*vy)), colour, 1)
+    cv2_cross(img, (int(x + 50*vx), int(y + 50*vy)), 3, colour, 1)
+    return cv2.line(img, (int(x), int(y)), (int(x + 50*vx), int(y + 50*vy)), colour, 1)
+
+
+def pythag(v):
+    return np.sqrt(np.dot(v, v))
+
+
+def norm(v):
+    return v / np.sqrt(np.dot(v, v))
 
 
 def find_intersect_coeffs(line_vs, line_pts):
@@ -56,8 +170,8 @@ def find_intersect_coeffs(line_vs, line_pts):
 # fit vectors which are 100% perpendicular (rather than roughly)
 def fit_orthog_vs(line_vs):
 
-    halfway = sum(line_vs)
-    halfway /= np.sqrt(np.dot(halfway, halfway))
+    halfway = norm(sum(line_vs))
+    
 
     # print("line_vs", line_vs)
     # print("halfway", halfway)
@@ -108,7 +222,7 @@ def detect_robot(img):
     robot_img = np.zeros_like(hsv)
     robot_img1 = np.zeros_like(hsv)
 
-    # cv2.drawContours(img, red_cs, -1, (0, 0, 255), -1)
+    cv2.drawContours(img, red_cs, -1, (0, 0, 255), -1)
 
 
 
@@ -165,22 +279,20 @@ def detect_robot(img):
 
     intersect_coords = (0.5 * (intersect_coords_1 + intersect_coords_2)).astype(int)
 
+
+    for pt in line_pts:
+        dist = pythag(pt - intersect_coords)
+        if dist > max(robot.dims/IDX_TO_COORD_SF):
+            print("too far to intersect")
+
+    
     # coordinate system now fully established
     # vector 0 is robot x, vector 1 is robot y
 
-    # x cyan, y yellow, magenta origin
-    img = draw_line_from_params(img, line_vs[0], line_pts[0], (255, 255, 0)) 
-    img = draw_line_from_params(img, line_vs[1], line_pts[1], (0, 255, 255))
-    cv2_cross(img, intersect_coords, 3, (255, 0, 255), 2)
-
-
     sw.stop(False)
 
-    # mpl_show(robot_img)
-    if not USE_VIDEO:
-        mpl_show(img)
+    return intersect_coords, line_vs
 
-    return img
 
 
     
