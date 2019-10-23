@@ -1,6 +1,8 @@
 from global_stuff import *
 from arena import *
-import udpComms as udpc
+
+if USE_VIDEO:
+    import udpComms as udpc
 
 # udpc.setup()
 
@@ -24,6 +26,7 @@ RED2 = np.array([340, 360])
 
 
 MAX_THETA_RATE = 45*DEG_TO_RAD # 90 degrees per second
+POS_DEADBAND_W = 0.04 # m
 
 class Robot():
 
@@ -32,18 +35,26 @@ class Robot():
         self.h_m = 0.155
         self.dims = np.array([self.h_m, self.w_m])
 
-        self.origin_history = []
-        self.axes_history = []
-        self.timestamps = []
+        if not USE_VIDEO:
+            self.origin_history = [np.array([200, 200])]
+            self.axes_history = [np.array([[0, -1], [-1, 0]])]
+            self.timestamps = [time.time()]
+
+        else:
+            self.origin_history = []
+            self.axes_history = []
+            self.timestamps = []
+        
 
         # target rotation and position
         self.t_rot = None
         self.t_pos = None
+        self.t_start_pos = None
 
         self.theta_err = None
         self.latest_cmd = None
 
-    def draw_coord_sys(self, img):
+    def illustrate(self, img):
 
         est = self.get_pos_estimate()
 
@@ -51,20 +62,45 @@ class Robot():
             return img
         
         origin, axes = est
+        centre = self.get_centre_coords()
+        c_idx = pt(pos=centre).idx
 
-        # x cyan, y yellow, magenta origin
+        # x cyan, y yellow, magenta centre, green heading
         img = draw_line_from_params(img, origin, axes[0], (255, 255, 0)) 
         img = draw_line_from_params(img, origin, axes[1], (0, 255, 255))
-        
-        cv2_cross(img, pt(idx=origin).idx, 3, (255, 0, 255), 2)
-        cv2_cross(img, pt(pos=self.get_centre_coords()).idx, 3, (255, 255, 255), 1)
+        cv2_cross(img, pt(pos=centre).idx, 3, (255, 0, 255), 2)
+        img = draw_line_from_params(img, c_idx, axes[1], (0, 255, 0))
 
-        cv2_text(img, "latest command: " + str(self.latest_cmd), (50, 50), (255, 255, 255))
-        cv2_text(img, "rotation error: " + str(self.theta_err), (50, 100), (255, 255, 255))
+        
+        if self.t_pos is not None:
+
+            t_idx = pt(pos=self.t_pos).idx
+            t_s_idx = pt(pos=self.t_start_pos).idx
+
+            # desired centre position & line towards it - white
+            cv2_cross(img, t_idx, 3, (255, 255, 255), 2)
+            cv2.line(img, tuple(t_idx), tuple(t_s_idx), (255, 255, 255), 1)
+
+            db_offset_idx = (axes[0] * (POS_DEADBAND_W / IDX_TO_COORD_SF)).astype(int)
+
+            # line deadband in orange
+            cv2.line(img, tuple(t_idx + db_offset_idx), tuple(t_s_idx + db_offset_idx), (0, 127, 255), 1)
+            cv2.line(img, tuple(t_idx - db_offset_idx), tuple(t_s_idx - db_offset_idx), (0, 127, 255), 1)
+
+        if self.t_rot is not None:
+
+            # img = draw_line_from_params(img, c_idx, axes[1], (255, 0, 0))
+            img = draw_line_from_params(img, c_idx, self.t_rot, (255, 127, 0))
+            # img = draw_line_from_params(img, c_idx, axes[1], (255, 0, 0))
+
+
+        # useful info
+        cv2_text(img, f"latest command: {self.latest_cmd}", (50, 50), (255, 255, 255))
+        cv2_text(img, f"rotation error: {self.theta_err}", (50, 70), (255, 255, 255))
 
         # mpl_show(robot_img)
-        if not USE_VIDEO:
-            mpl_show(img)
+        # if not USE_VIDEO:
+        #     mpl_show(img)
 
         return img
 
@@ -87,8 +123,12 @@ class Robot():
 
     def get_centre_coords(self):
 
-        origin, dirs = self.get_pos_estimate()
-        
+        v = self.get_pos_estimate()
+        if v is None:
+            return None
+
+        origin, dirs = v
+
         offset = (self.dims - 0.005)/2
 
         return pt(idx=origin).pos + np.matmul(dirs, offset)
@@ -142,10 +182,23 @@ class Robot():
         self.record_pos(origin, axes)
 
 
-    # in real world coords
-    def set_target(self, pos, rot):
-        self.t_pos = pos
+    # in real world coords - also sets target rot
+    def set_target_pos(self, t_pos):
 
+        centre = self.get_centre_coords()
+
+        if centre is None:
+            return
+        
+        self.t_pos = t_pos
+        self.t_start_pos = centre
+
+        rot = t_pos - centre
+
+        self.set_target_rot(rot)
+
+
+    def set_target_rot(self, rot):
         if abs(1.0-pythag(rot)) > 0.01:
             rot = rot / pythag(rot)
 
@@ -198,13 +251,21 @@ class Robot():
                     self.send_cmd("turn left until")
 
                 
-            else:
+            elif abs(theta_err) < DEG_TO_RAD * 5 and "turn" in self.latest_cmd:
                 self.send_cmd("stop")
+
+            if abs(theta_err) < DEG_TO_RAD * 10 and "turn" not in self.latest_cmd:
+
+                # heading the right direction and ready to move forward.
+                (axes[0] * (POS_DEADBAND_W / IDX_TO_COORD_SF)).astype(int)
+
 
 
     def send_cmd(self, cmd_txt):
+
         if cmd_txt != self.latest_cmd:
-            udpc.sendCommand(cmd_txt.encode())
+            if USE_VIDEO:
+                udpc.sendCommand(cmd_txt.encode())
             self.latest_cmd = cmd_txt
 
 
@@ -225,7 +286,7 @@ def draw_line_from_params(img, line_pt, line_v, colour):
     [vx, vy] = line_v
     [x, y] = line_pt
     rows,cols = img.shape[:2]
-    cv2_cross(img, (int(x + 50*vx), int(y + 50*vy)), 3, colour, 1)
+    # cv2_cross(img, (int(x + 50*vx), int(y + 50*vy)), 3, colour, 1)
     return cv2.line(img, (int(x), int(y)), (int(x + 50*vx), int(y + 50*vy)), colour, 1)
 
 

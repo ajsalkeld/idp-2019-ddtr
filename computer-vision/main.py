@@ -140,10 +140,8 @@ if __name__ == "__main__":
 
                 robot.update_pos(r_frame)
                 
-                robot.draw_coord_sys(r_frame)
-
-                robot.set_target(np.array([1.0, 1.0]), np.array([1.0, 0.0]))
-
+                robot.set_target(np.array([2.0, 2.0]), np.array([1.0, 0.0]))
+                robot.illustrate(r_frame)
                 robot.do_control()
 
                 to_show = illustrate(r_frame, mine_data)
@@ -170,8 +168,11 @@ if __name__ == "__main__":
         img = cv2.resize(img, tuple(RESOLUTION))
 
         if DO_ROBOT:
-            robot.update_pos(img)
-            robot.draw_coord_sys(img)
+            # robot.update_pos(img)
+
+            robot.set_target_pos(np.array([2.0, 2.0]))
+            robot.illustrate(img)
+            robot.do_control()
 
         mine_data = []
         if DO_MINES:

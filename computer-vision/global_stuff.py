@@ -8,7 +8,7 @@ import socket
 import threading
 import math
 
-USE_VIDEO = True
+USE_VIDEO = False
 DO_MINES = False
 DO_ROBOT = True
 F_NAME = "robot_mode.jpg"
@@ -31,7 +31,7 @@ def mpl_show(img):
     else:
         img_mpl = img
     plt.axis("off")
-    plt.imshow(img_mpl,'gray') #convert to bgr
+    plt.imshow(img_mpl, "gray")
     plt.show()
 
 
