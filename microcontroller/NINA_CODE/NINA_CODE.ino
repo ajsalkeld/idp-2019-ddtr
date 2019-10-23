@@ -12,12 +12,12 @@ int status = WL_IDLE_STATUS; // Initial Status
 
 WiFiUDP Udp; // Adding udp class
 
-
 unsigned int localPort = LOCALPORT;      // local port to listen on
 
 char* packetBuffer; //buffer to hold incoming packet
 
 int stopTimerId;
+int ultrasensorId;
 
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); // Shield object
 Adafruit_DCMotor *rightMotor = AFMS.getMotor(1); // Motor object
@@ -61,7 +61,7 @@ void setup() {
   printWifiStatus();   // Prints wifi status
 
   Udp.begin(localPort);
-  timer.setInterval(ultrasonicChecker, 1000); // check ultrasonic every second
+  ultrasensorId = timer.setInterval(125, ultrasonicChecker); // check ultrasonic every second
 }
 
 void loop() {
@@ -140,6 +140,10 @@ void loop() {
     else if (command == "lower fork") {
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(PICK_UP);
+    }
+    else if (command == "check ultra") {
+      sendAcknowledgement(packetBuffer, packetSize);
+      ultrasonicChecker();
     }
     else {
       sendRefusal(packetBuffer, packetSize, command);
@@ -272,8 +276,19 @@ void ultrasonicChecker() {
     // Reads the echoPin, returns the sound wave travel time in microseconds
     ultrasonicDuration = pulseIn(ECHO_PIN, HIGH);
     // Calculating the distance
-    distance= ultrasonicDuration*0.034/2;
+    distance = ultrasonicDuration*0.034/2;
     // Prints the distance on the Serial Monitor
-    Serial.print("Distance: ");
+    if (distance < 22) {
+      Serial.println("Close to mine");
+      stopMotors();
+      Udp.beginPacket(remoteIP, remotePort);
+      Udp.write("Close to mine ");
+      Udp.write(distance);
+      Udp.endPacket();
+      // disable timer
+      // check hall sensor
+      // reverse
+      // pickup
+    }
   }
 }
