@@ -6,6 +6,7 @@ from skimage import exposure
 import time
 import socket
 import threading
+import math
 
 USE_VIDEO = True
 DO_MINES = False
