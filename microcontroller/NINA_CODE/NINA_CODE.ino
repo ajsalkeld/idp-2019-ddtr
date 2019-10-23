@@ -17,6 +17,8 @@ unsigned int localPort = LOCALPORT;      // local port to listen on
 
 char* packetBuffer; //buffer to hold incoming packet
 
+int stopTimerId;
+
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); // Shield object
 Adafruit_DCMotor *rightMotor = AFMS.getMotor(1); // Motor object
 Adafruit_DCMotor *leftMotor = AFMS.getMotor(2); // Motor object
@@ -202,6 +204,7 @@ void stopMotors() {
   delay(250);
   rightMotor->run(RELEASE);
   leftMotor->run(RELEASE);
+  if (stopTimerId) timer.deleteTimer(stopTimerId);
 }
 // timeToRun in millieconds
 void runUntilStop(int direction, int timeToRun) {
@@ -226,7 +229,7 @@ void runUntilStop(int direction, int timeToRun) {
       break;
   }
   if (timeToRun > 0) {
-    timer.setTimeout(timeToRun, stopMotors);
+    stopTimerId = timer.setTimeout(timeToRun, stopMotors);
   }
 }
 
