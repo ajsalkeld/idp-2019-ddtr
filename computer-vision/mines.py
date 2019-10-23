@@ -23,7 +23,7 @@ def find_mines(img, mask, img_x, img_y):
 
     mean = trunced.mean()
 
-    sobel = cv2.Sobel(trunced, cv2.CV_64F, 0, 1, ksize=ksize)
+    sobel = cv2.Sobel(trunced, cv2.CV_64F, 0, 1, ksize=ksize) # makes image emphasising edges
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksize, ksize))
     dilated_mask = cv2.erode(mask, kernel)
 
