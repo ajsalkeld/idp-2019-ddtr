@@ -8,12 +8,13 @@ import socket
 import threading
 import math
 
-USE_VIDEO = True
+USE_VIDEO = False
 DO_MINES = False
 DO_ROBOT = True
 F_NAME = "robot_mode.jpg"
 
-
+DEG_TO_RAD = math.pi/180.0
+RAD_TO_DEG = 180.0/math.pi
 
 # must be 3:4 H:W ratio
 RESOLUTION = np.array([640, 480]) # x, y
@@ -30,7 +31,7 @@ def mpl_show(img):
     else:
         img_mpl = img
     plt.axis("off")
-    plt.imshow(img_mpl,'gray') #convert to bgr
+    plt.imshow(img_mpl, "gray")
     plt.show()
 
 
@@ -79,3 +80,12 @@ class Stopwatch():
         
         return 0
         
+
+def cv2_text(image, txt, idx, colour):
+    font = cv2.FONT_HERSHEY_SIMPLEX 
+    fontScale = 0.5    
+    thickness = 1
+    
+    # Using cv2.putText() method 
+    return cv2.putText(image, txt, idx, font,  
+                       fontScale, colour, thickness, cv2.LINE_AA) 
