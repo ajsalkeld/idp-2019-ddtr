@@ -92,8 +92,28 @@ void loop() {
     Serial.println(packetBuffer);
 
     String command;
-    command = String(command + packetBuffer);
-    Serial.println(command);
+    int timeToRun, leftMotorSpeed, rightMotorSpeed;
+
+    char* token;
+    token = strtok(packetBuffer, del);    // Get first part - command
+    command = String(token);
+
+    token = strtok(NULL, del);            // Get second part - time
+    if (token != NULL) {
+      timeToRun = token;  
+      Serial.println(timeToRun);
+      token = strtok(NULL, del);
+       if (token != NULL) {
+        leftMotorSpeed = token; 
+        serial.println(leftMotorSpeed); 
+        token = strtok(NULL, del);
+         if (token != NULL) {
+          rightMotorSpeed = token;  
+          Serial.println(rightMotorSpeed);
+        }
+      }
+    }
+
 
     if (command == "Hello from python") {
       sendAcknowledgement(packetBuffer, packetSize);
@@ -112,6 +132,15 @@ void loop() {
       }
       else {
         runUntilStop(NINA_FORWARDS);
+      }
+    }
+    else if ((command.indexOf("run") >= 0) & (leftMotorSpeed != NULL) & (rightMotorSpeed != NULL)) {
+      sendAcknowledgement(packetBuffer, packetSize);
+      if (timeToRun >= 0) {
+        runMotors(timeToRun, leftMotorSpeed, rightMotorSpeed);
+      }
+      else {
+        runMotors(0, leftMotorSpeed, rightMotorSpeed);
       }
     }
     else if (command.indexOf("reverse until") >= 0) {
@@ -237,8 +266,33 @@ void runUntilStop(int direction, int timeToRun) {
   }
 }
 
+void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed) {
+  int lDirection, rDirection;
+  if ((leftMotorSpeed >= 0) & (leftMotorSpeed <= 255)) {
+    leftMotor->setSpeed(leftMotorSpeed);
+    lDirection = FORWARD;
+  }
+  else if ((leftMotorSpeed < 0) & (leftMotorSpeed >= -255)) {
+    leftMotor->setSpeed(-leftMotorSpeed);
+    lDirection = BACKWARD;
+  }
+  if ((rightMotorSpeed >= 0) & (rightMotorSpeed <= 255)) {
+    rightMotor->setSpeed(rightMotorSpeed);
+    rDirection = BACKWARD;
+  }
+  else if ((rightMotorSpeed < 0) & (rightMotorSpeed >= -255)) {
+    rightMotor->setSpeed(-rightMotorSpeed);
+    rDirection = FORWARD;
+  }
+  if (timeToRun > 0) {
+    stopTimerId = timer.setTimeout(timeToRun, stopMotors);
+  }
+  leftMotor->run(lDirection);
+  rightMotor->run(rDirection);
+}
+
 void liftFork() {
-  for (int pos = 180; pos >= 130; pos -= 1) { // goes from 0 degrees to 180 degrees
+  for (int pos = 210; pos >= 130; pos -= 1) { // goes from 0 degrees to 180 degrees
     // in steps of 1 degree
     servo.write(pos);              // tell servo to go to position in variable 'pos'
     delay(30);                       // waits 15ms for the servo to reach the position
@@ -248,14 +302,14 @@ void liftFork() {
 void lowerFork(int dropOrPick) {
   switch (dropOrPick) {
     case PICK_UP:
-      for (int pos = 130; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
+      for (int pos = 130; pos <= 210; pos += 1) { // goes from 0 degrees to 180 degrees
         // in steps of 1 degree
         servo.write(pos);              // tell servo to go to position in variable 'pos'
         delay(30);                       // waits 15ms for the servo to reach the position
       }
       break;
     case DROP:
-      for (int pos = 130; pos <= 165; pos += 1) { // goes from 0 degrees to 180 degrees
+      for (int pos = 130; pos <= 195; pos += 1) { // goes from 0 degrees to 180 degrees
         // in steps of 1 degree
         servo.write(pos);              // tell servo to go to position in variable 'pos'
         delay(30);                       // waits 15ms for the servo to reach the position
