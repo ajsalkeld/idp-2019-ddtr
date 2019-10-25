@@ -188,6 +188,8 @@ void loop()
       delay(30);
       runUntilStop(NINA_BACKWARDS, 500);
       liftFork();
+      timer.enable(ultrasensorId);
+      carryingMine = false;
     }
     else if (command == "lower fork")
     {
@@ -335,6 +337,7 @@ void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
 
 void liftFork()
 {
+  forkLow = false;
   for (int pos = 210; pos >= 130; pos -= 1)
   { // goes from 0 degrees to 180 degrees
     // in steps of 1 degree
@@ -345,6 +348,7 @@ void liftFork()
 
 void lowerFork(int dropOrPick)
 {
+  forkLow = true;
   switch (dropOrPick)
   {
   case PICK_UP:
@@ -368,7 +372,7 @@ void lowerFork(int dropOrPick)
 
 void ultrasonicChecker()
 {
-  if (!carryingMine)
+  if (!carryingMine & !forkLow)
   {
     // Clears the trigPin
     digitalWrite(TRIGGER_PIN, LOW);
@@ -391,9 +395,14 @@ void ultrasonicChecker()
       Udp.write(distance);
       Udp.endPacket();
       // disable timer
-      // check hall sensor
+      timer.disable(ultrasensorId);
+      // TODO: check hall sensor
       // reverse
+      runMotors(125, -75, -75);
       // pickup
+      lowerFork(PICK_UP);
+      runMotors(1000, 75, 75); // TODO: Make this better to use the ultrasonic distance.
+      liftFork();
     }
   }
 }
