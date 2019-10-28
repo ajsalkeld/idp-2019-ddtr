@@ -1,7 +1,7 @@
 from global_stuff import *
 
 import mines
-from robot import robot
+from robot import Nina
 import udpComms
 from arena import *
 pt = Point
@@ -105,48 +105,43 @@ if __name__ == "__main__":
 
         print(f"done. setup took {end_setup - start_setup} seconds (jheez)")
 
-        mines_every = 150
-        i = -2
         mine_data = []
+
+        test_loc = False
+
         while True:
-            i += 1
 
-            if (i == mines_every or i == -1) and DO_MINES:
-                i = 0
 
+            # r_frame = cv2.resize(r_frame, tuple(RESOLUTION))
+            if Nina.wants_mine_data():
+                
                 set_params(cap, mine_vid_params)
 
                 m_frame = get_frame(cap)
                 cv2.imwrite("mine_mode.jpg", m_frame)
                 # show_img(m_frame)
-
-
                 mine_data = do_mine_stuff(m_frame)
-
-                m_frame = illustrate(m_frame, mine_data)
-
-                # time.sleep(0.5)
-
+                Nina.set_mine_locs([centre for centre, rad in mine_data])
 
                 set_params(cap, robot_vid_params)
 
-            elif DO_ROBOT:
-                r_frame = get_frame(cap)
 
-                cv2.imwrite("robot_mode.jpg", r_frame)
+            r_frame = get_frame(cap)
+            cv2.imwrite("robot_mode.jpg", r_frame)
+           
+            Nina.update_pos(r_frame)
 
-                # r_frame = cv2.resize(r_frame, tuple(RESOLUTION))
-                
+            if not test_loc:
+                Nina.set_target_pos(np.array([1.7, 1.6]))
+            # Nina.update_state()
 
-                robot.update_pos(r_frame)
-                
-                robot.set_target(np.array([2.0, 2.0]), np.array([1.0, 0.0]))
-                robot.illustrate(r_frame)
-                robot.do_control()
+            Nina.illustrate(r_frame)
+            
+            Nina.control_to_target()
 
-                to_show = illustrate(r_frame, mine_data)
+            to_show = illustrate(r_frame, mine_data)
 
-                show_img(to_show)
+            show_img(to_show)
 
                 # time.sleep(2)
 
@@ -168,11 +163,14 @@ if __name__ == "__main__":
         img = cv2.resize(img, tuple(RESOLUTION))
 
         if DO_ROBOT:
-            # robot.update_pos(img)
+            Nina.update_pos(img)
+            Nina.update_pos(img)
+            Nina.update_pos(img)
+            Nina.update_pos(img)
 
-            robot.set_target_pos(np.array([2.0, 2.0]))
-            robot.illustrate(img)
-            robot.do_control()
+            # Nina.set_target_pos(np.array([2.0, 2.0]))
+            Nina.illustrate(img)
+            # Nina.control_to_target()
 
         mine_data = []
         if DO_MINES:

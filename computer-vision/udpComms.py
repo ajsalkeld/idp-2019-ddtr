@@ -20,7 +20,7 @@ def rxThread():
 def sendCommand(command):
     s.sendto(command, (IP, 2390))
 
-IP = "192.168.137.142"
+IP = "192.168.137.38"
 
 # def setup():
 # bind all IP
