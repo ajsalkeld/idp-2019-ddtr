@@ -107,10 +107,9 @@ if __name__ == "__main__":
 
         mine_data = []
 
-        test_loc = False
+        i = 0
 
         while True:
-
 
             # r_frame = cv2.resize(r_frame, tuple(RESOLUTION))
             if Nina.wants_mine_data():
@@ -131,8 +130,12 @@ if __name__ == "__main__":
            
             Nina.update_pos(r_frame)
 
-            if not test_loc:
-                Nina.set_target_pos(np.array([1.7, 1.6]))
+            if i < 10:
+                Nina.set_target_pos(np.array([1.0, 1.5]))
+
+            if Nina.achieved_target:
+                Nina.set_target_pos(np.random.rand(2)*1.4 + 0.5)
+                print("set new target")
             # Nina.update_state()
 
             Nina.illustrate(r_frame)
@@ -145,6 +148,7 @@ if __name__ == "__main__":
 
                 # time.sleep(2)
 
+            i += 1
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                     break

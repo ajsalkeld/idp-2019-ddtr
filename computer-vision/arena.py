@@ -162,7 +162,7 @@ if __name__ == "__main__":
     print((y*2 -x).cv_tup)
 
 
-robot_mask_name = "pics/calib/robot_mode_mask1.jpg"
+robot_mask_name = "pics/calib/robot_mode_mask.jpg"
 ROBOT_MASK = cv2.imread(robot_mask_name)
 ROBOT_MASK = cv2.resize(ROBOT_MASK, tuple(RESOLUTION))
 

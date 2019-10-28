@@ -25,10 +25,10 @@ RED1 = np.array([0, 20])
 RED2 = np.array([340, 360])
 
 
-MAX_THETA_RATE = 0.15
-MAX_TRANS_RATE = 0.25
+MAX_THETA_RATE = 0.2
+MAX_TRANS_RATE = 0.3
 
-POS_DEADBAND_W = 0.06 # m
+POS_DEADBAND_W = 0.04 # m
 
 class Robot():
 
@@ -211,16 +211,20 @@ class Robot():
         cv2_cross(img, c_idx, 3, (255, 0, 255), 2)
         img = draw_line_from_params(img, c_idx, axes[1], (0, 255, 0))
 
-        # a = pt(pos=np.matmul(axes, self.b_box1_offset)).idx
+        a = pt(pos=np.matmul(axes, self.b_box1_offset)).idx
         # c = pt(pos=np.matmul(axes, self.b_box1_wh)).idx
         # b = pt(pos=np.matmul(axes, self.b_box2_offset)).idx
         # d = pt(pos=np.matmul(axes, self.b_box2_wh)).idx
 
+        bound_cntr = np.array([ tuple([int(x), int(y)]) for x, y in [
+            c_idx + a, 
+            c_idx + a + self.b_box1_wh[1]*axes[1],
+            c_idx + a + self.b_box1_wh[0]*axes[0] + self.b_box1_wh[1]*axes[1],
+            c_idx + a + self.b_box1_wh[0]*axes[0]
+        ]], dtype=np.int32)
 
-        # print(c_idx + a, b, c, d)
-        # bounding box in white
-        # cv2.rectangle(img, tuple(c_idx + a), tuple(c_idx + a + b), (255, 255, 255), 1)
-        # cv2.rectangle(img, tuple(c_idx + c), tuple(c_idx + c + d), (255, 255, 255), 1)
+        cv2.drawContours(img, [bound_cntr], 0, (255, 255, 255), 1)
+
 
 
         # img = cv2.bitwise_and(img, ROBOT_MASK)
@@ -234,7 +238,11 @@ class Robot():
             cv2_cross(img, t_idx, 3, (255, 255, 255), 2)
             cv2.line(img, tuple(t_idx), tuple(t_s_idx), (255, 255, 255), 1)
 
-            db_offset_idx = (axes[0] * (POS_DEADBAND_W / IDX_TO_COORD_SF)).astype(int)
+            db_offset_dir = (t_idx - t_s_idx)
+            db_offset_dir = np.array([db_offset_dir[1], -db_offset_dir[0]])
+            db_offset_dir = db_offset_dir/pythag(db_offset_dir)
+
+            db_offset_idx = (db_offset_dir * (POS_DEADBAND_W / IDX_TO_COORD_SF)).astype(int)
 
             # line deadband in orange
             cv2.line(img, tuple(t_idx + db_offset_idx), tuple(t_s_idx + db_offset_idx), (0, 127, 255), 1)
@@ -350,6 +358,7 @@ class Robot():
     def set_target_pos(self, t_pos):
 
         self.achieved_target = False
+        self.ok_to_translate = False
 
         centre = self.get_centre_coords()
 
@@ -358,7 +367,7 @@ class Robot():
         
         self.t_pos = t_pos
         self.t_start_pos = centre
-
+        
         rot = t_pos - centre
 
         self.set_target_rot(rot)
@@ -402,19 +411,24 @@ class Robot():
 
         if self.t_pos is not None:
             self.pos_err = pythag(self.t_pos - real_pos)
-            d_vec = self.t_pos - real_pos
+            
             t_line_vec = self.t_pos - self.t_start_pos
             t_line_vec = t_line_vec / pythag(t_line_vec)
 
+            d_vec = self.t_pos - real_pos
+
+            further_d_vec = d_vec + 0.1*t_line_vec # 10 cm past
             curr_t_rot = d_vec / pythag(d_vec)
             
-            if self.pos_err < 0.05:
+            if self.pos_err < 0.02:
                 # made it to correct position!
                 self.achieved_target = True
                 self.t_pos = None
                 self.t_rot = None
+                self.send_cmd("stop")
+                update_motors = False
 
-        if self.t_rot is not None: #and not self.ok_to_translate:
+        if self.t_rot is not None:
 
             d_prod = np.dot(curr_t_rot, real_rot)
             c_prod = curr_t_rot[0] * real_rot[1] - curr_t_rot[1] * real_rot[0]
@@ -428,7 +442,7 @@ class Robot():
             self.theta_err = theta_err
             # print("theta error (rad):", theta_err)
 
-            if abs(theta_err) > DEG_TO_RAD * 5:
+            if abs(theta_err) > DEG_TO_RAD * 3:
                 
                 if abs(theta_err) > DEG_TO_RAD * 20:
                     theta_rate = - MAX_THETA_RATE * sign(theta_err)
@@ -442,14 +456,15 @@ class Robot():
             
             # hysteresis on ok_to_translate
             else:
-                self.send_cmd("stop")
-                update_motors = False
-                
                 if self.t_pos is None:
                     self.achieved_target = True
                     self.t_rot = None
                 else:
-                    self.ok_to_translate = True
+
+                    if not self.ok_to_translate:
+                        self.send_cmd("stop")
+                        update_motors = False
+                        self.ok_to_translate = True
 
 
             if self.t_pos is not None:
@@ -470,11 +485,6 @@ class Robot():
                     self.set_target_rot(d_vec)
                     self.outside_deadband = True
 
-                # else:
-                #     theta_rate = perp_dist_from_t * perp_dist_from_t / MAX_THETA_RATE
-                #     self.l_cmd += theta_rate
-                #     self.r_cmd -= theta_rate
-
                 if abs(perp_dist_from_t) < POS_DEADBAND_W / 2 and self.outside_deadband:
                     self.outside_deadband = False
 
@@ -486,47 +496,35 @@ class Robot():
 
                         self.l_cmd += MAX_TRANS_RATE
                         self.r_cmd += MAX_TRANS_RATE
+                    
+                    else:
 
-                    elif self.pos_err > 0.05: #m
+                        self.l_cmd += MAX_TRANS_RATE * (self.pos_err + 0.025)/0.125
+                        self.r_cmd += MAX_TRANS_RATE * (self.pos_err + 0.025)/0.125
 
-                        self.l_cmd += MAX_TRANS_RATE * self.pos_err/0.1
-                        self.r_cmd += MAX_TRANS_RATE * self.pos_err/0.1
 
             if update_motors:
                 self.set_motors()
 
     def set_motors(self):
 
-        update = False
-
-        if abs(self.l_cmd - self.last_l_cmd) > 0.01:
-            self.last_l_cmd = self.l_cmd
-            update = True
-
-        if abs(self.r_cmd - self.last_r_cmd) > 0.01:
-            self.last_r_cmd = self.r_cmd
-            update = True
-
-        # print(update)
         if abs(self.l_cmd) < 0.01 and abs(self.r_cmd) < 0.01:
             self.send_cmd("stop")
             return
 
+        l_int = int(round(self.l_cmd * 255))
+        r_int = int(round(self.r_cmd * 255))
 
-        if update:
-            l_int = int(round(self.last_l_cmd * 255))
-            r_int = int(round(self.last_r_cmd * 255))
-
-            self.send_cmd(f"run:0:{l_int}:{r_int}")
-            # print(f"run:0:{l_int}:{r_int}")
+        self.send_cmd(f"run:0:{l_int}:{r_int}")
+        
         
 
-    # max rate of 10 Hz
+    # max rate of 5 Hz
     def send_cmd(self, cmd_txt):
 
         t_now = time.time() 
 
-        if cmd_txt != self.latest_cmd and (cmd_txt == "stop" or t_now - self.latest_cmd_time > 0.1):
+        if cmd_txt != self.latest_cmd and (cmd_txt == "stop" or t_now - self.latest_cmd_time > 0.2):
             if USE_VIDEO:
                 print("sending:", cmd_txt)
                 udpc.sendCommand(cmd_txt.encode())
