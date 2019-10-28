@@ -13,6 +13,10 @@
 #define LOCALPORT 2390
 #define MAX_SPEED 200
 
+// Speed 100, 77cm in 10 secs = 7.7 cm/s
+// Speed 150, 115cm in 10 secs = 11.5 cm/s
+// Speed 200, 161cm in 10 secs = 16.1 cm/s
+
 #define ECHO_PIN 12
 #define TRIGGER_PIN 13
 #define SERVO_PIN 9

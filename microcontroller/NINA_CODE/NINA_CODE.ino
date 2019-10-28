@@ -29,10 +29,10 @@ SimpleTimer timer; // create timer object for stopping after time
 void setup()
 {
   Serial.begin(9600);
-  while (!Serial)
-  {
-    ; // Wait for USB serial to connect
-  }
+  //while (!Serial)
+  //{
+    //; // Wait for USB serial to connect
+  //}
   AFMS.begin();            // Starts with default freq
   servo.attach(SERVO_PIN); // attaches the servo on pin 9 to the servo object
   servo.write(130);
@@ -66,7 +66,7 @@ void setup()
   printWifiStatus(); // Prints wifi status
 
   Udp.begin(localPort);
-  ultrasensorId = timer.setInterval(125, ultrasonicChecker); // check ultrasonic every second
+  ultrasensorId = timer.setInterval(125, ultrasonicChecker); // check ultrasonic 
 }
 
 void loop()
@@ -200,6 +200,16 @@ void loop()
     {
       sendAcknowledgement(packetBuffer, packetSize);
       ultrasonicChecker();
+    }
+    else if (command == "get status")
+    {
+      sendAcknowledgement(packetBuffer, packetSize);
+      sendStatus();
+    }
+    else if (command == "enable timer")
+    {
+      sendAcknowledgement(packetBuffer, packetSize);
+      timer.enable(ultrasensorId);
     }
     else
     {
@@ -356,15 +366,15 @@ void lowerFork(int dropOrPick)
     { // goes from 0 degrees to 180 degrees
       // in steps of 1 degree
       servo.write(pos); // tell servo to go to position in variable 'pos'
-      delay(30);        // waits 15ms for the servo to reach the position
+      delay(15);        // waits 15ms for the servo to reach the position
     }
     break;
   case DROP:
-    for (int pos = 130; pos <= 155; pos += 1)
+    for (int pos = 130; pos <= 165; pos += 1)
     { // goes from 0 degrees to 180 degrees
       // in steps of 1 degree
       servo.write(pos); // tell servo to go to position in variable 'pos'
-      delay(30);        // waits 15ms for the servo to reach the position
+      delay(15);        // waits 15ms for the servo to reach the position
     }
     break;
   }
@@ -374,17 +384,8 @@ void ultrasonicChecker()
 {
   if (!carryingMine & !forkLow)
   {
-    // Clears the trigPin
-    digitalWrite(TRIGGER_PIN, LOW);
-    delayMicroseconds(2);
-    // Sets the trigPin on HIGH state for 10 micro seconds
-    digitalWrite(TRIGGER_PIN, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(TRIGGER_PIN, LOW);
-    // Reads the echoPin, returns the sound wave travel time in microseconds
-    ultrasonicDuration = pulseIn(ECHO_PIN, HIGH);
-    // Calculating the distance
-    distance = ultrasonicDuration * 0.034 / 2;
+    // Get the distance
+    getUSDistance();
     // Prints the distance on the Serial Monitor
     if (distance < 22)
     {
@@ -392,17 +393,58 @@ void ultrasonicChecker()
       stopMotors();
       Udp.beginPacket(remoteIP, remotePort);
       Udp.write("Close to mine ");
+      char distchar = distance;
       Udp.write(distance);
       Udp.endPacket();
       // disable timer
       timer.disable(ultrasensorId);
       // TODO: check hall sensor
-      // reverse
-      runMotors(125, -75, -75);
       // pickup
       lowerFork(PICK_UP);
-      runMotors(1000, 75, 75); // TODO: Make this better to use the ultrasonic distance.
+      // calculate time to run forward, 7.7 cm/s
+      float timeForMine = distance / 7.5 * 1000;
+      runMotors((int)timeForMine, 100, 100); // TODO: Make this better to use the ultrasonic distance.
       liftFork();
+
+      // Check US again - reattempt if not picked up
+      getUSDistance();
+
+      if (distance < 20) {
+        Udp.beginPacket(remoteIP, remotePort);
+        Udp.write("Failed to pickup mine, re-attempting");
+        Udp.endPacket();
+        carryingMine = false;
+        timer.disable(ultrasensorId);
+      }
+      else {
+        Udp.beginPacket(remoteIP, remotePort);
+        Udp.write("Picked up mine ");
+        Udp.write((char)timeForMine);
+        Udp.endPacket();
+      }
     }
   }
+}
+
+void sendStatus() {
+  Udp.beginPacket(remoteIP, remotePort);
+  char statusReport[100];
+  getUSDistance();
+  sprintf(statusReport, "carryingMine: %d; forkLow: %d; distance: %d", carryingMine, forkLow, distance);
+  Udp.write(statusReport);
+  Udp.endPacket();
+}
+
+void getUSDistance() {
+  // Clears the trigPin
+  digitalWrite(TRIGGER_PIN, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(TRIGGER_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER_PIN, LOW);
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  ultrasonicDuration = pulseIn(ECHO_PIN, HIGH);
+  // Calculating the distance
+  distance = ultrasonicDuration * 0.034 / 2;
 }
