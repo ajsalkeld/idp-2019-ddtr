@@ -31,7 +31,12 @@ unsigned int remotePort; // are received.
 long ultrasonicDuration;
 int distance; // cm?
 bool carryingMine = false;
+bool forkLow = false;
+const char del[] = ":";
 
 void runUntilStop(int direction, int timeToRun = 0);
+void runMotors(int timeToRun = 0, int leftMotorSpeed = MAX_SPEED, int rightMotorSpeed = MAX_SPEED);
+
+//"run:time:left speed:right speed"
 
 #endif
