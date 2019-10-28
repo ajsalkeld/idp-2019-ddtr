@@ -162,7 +162,7 @@ if __name__ == "__main__":
     print((y*2 -x).cv_tup)
 
 
-robot_mask_name = "pics/calib/robot_mode_mask.jpg"
+robot_mask_name = "pics/calib/robot_mode_mask1.jpg"
 ROBOT_MASK = cv2.imread(robot_mask_name)
 ROBOT_MASK = cv2.resize(ROBOT_MASK, tuple(RESOLUTION))
 
@@ -194,6 +194,11 @@ LIVE_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-TAPE_THICKNESS/2))
 
 DEAD_DEPOSIT_TOP_LEFT = Point(pos=(2.4-0.29, 2.4-0.9))
 DEAD_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-0.6-TAPE_THICKNESS/2))
+
+SAFE_LINE_X_POS = 2.4 - 0.55
+LIVE_DEPOSIT_Y_POS = 2.4 - 0.15
+DEAD_DEPOSIT_Y_POS = 2.4 - 0.75
+
 
 # LHS_BOUND_LINE_TOP = Point(pos=(2.4-0.5, 0))
 # LHS_BOUND_LINE_BOT = Point(pos=(2.4-0.5, 2.4))
