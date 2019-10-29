@@ -400,12 +400,13 @@ void lowerFork(int dropOrPick)
 
 void ultrasonicChecker()
 {
+  // Note that everything is blocked in this function. Timers will not work.
   if (!carryingMine & !forkLow)
   {
     // Get the distance
     getUSDistance();
-    // Prints the distance on the Serial Monitor
-    if (distance < 22)
+
+    if (distance < 20)  // If US detects mine is close
     {
       Serial.println("Close to mine");
       stopMotors();
@@ -421,24 +422,27 @@ void ultrasonicChecker()
       // disable timer
       timer.disable(ultrasensorId);
 
-      // Check hall sensor
+      // Move forward over mine and check hall sensor
       // calculate time to run forward, 7.5 cm/s
       if (distance > 11) {
         float timeForMine = (distance - 11) / 7.5 * 1000;
-        runMotors((int)timeForMine, 100, 100); // Drive to 11cm away
+        runMotors(0, 100, 100); // Drive to 11cm away
         Serial.println((int)timeForMine);
         lowerFork(DROP); // Lower for for hall sensor
         delay((int)timeForMine);
         stopMotors();
         // CHECK SENSOR DIGITAL
         delay(5000);
+        runMotors(0,-100,-100);
+        delay(1000);
+        liftFork();
       }
 
       getUSDistance();
       // pickup
       lowerFork(PICK_UP);
       float timeForMine = (distance) / 7.5 * 1000;
-      runMotors((int)timeForMine, 100, 100);
+      runMotors(0, 100, 100);
       Serial.println((int)timeForMine);
       delay((int)timeForMine);
       stopMotors();
@@ -455,8 +459,7 @@ void ultrasonicChecker()
       }
       else {
         Udp.beginPacket(remoteIP, remotePort);
-        Udp.write("Picked up mine ");
-        Udp.write((char)timeForMine);
+        Udp.write("Picked up mine");
         Udp.endPacket();
       }
     }
