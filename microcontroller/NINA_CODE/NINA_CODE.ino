@@ -35,7 +35,7 @@ void setup()
   //}
   AFMS.begin();            // Starts with default freq
   servo.attach(SERVO_PIN); // attaches the servo on pin 9 to the servo object
-  servo.write(130);
+  servo.write(105);
 
   pinMode(TRIGGER_PIN, OUTPUT); // Sets the trigPin as an Output
   pinMode(ECHO_PIN, INPUT);     // Sets the echoPin as an Input
@@ -360,11 +360,11 @@ void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
 void liftFork()
 {
   forkLow = false;
-  if (pos < 130) pos = 130;
-  while (pos >= 130)
+  if (pos < 105) pos = 107;
+  while (pos > 105)
   {
     // in steps of 1 degree
-    pos -= 1;
+    pos -= 2;
     servo.write(pos); // tell servo to go to position in variable 'pos'
     delay(15);        // waits 15ms for the servo to reach the position
   }
@@ -376,8 +376,8 @@ void lowerFork(int dropOrPick)
   switch (dropOrPick)
   {
   case PICK_UP:
-    if (pos >= 160) pos = 159;
-    while (pos < 160)
+    if (pos >= 130) pos = 129;
+    while (pos < 130)
     { 
       // in steps of 1 degree
       pos += 1;
@@ -386,8 +386,8 @@ void lowerFork(int dropOrPick)
     }
     break;
   case DROP:
-    if (pos > 150) pos = 159;
-    while (pos < 150)
+    if (pos > 115) pos = 114;
+    while (pos < 115)
     { 
       // in steps of 1 degree
       pos += 1;
