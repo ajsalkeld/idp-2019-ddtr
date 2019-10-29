@@ -32,11 +32,16 @@
 IPAddress remoteIP; // For UDP. These will update when packets
 unsigned int remotePort; // are received.
 
+IPAddress diagIP; // For UDP. These will update when packets
+unsigned int diagPort; // are received.
+
+
 long ultrasonicDuration;
 int distance; // cm?
 bool carryingMine = false;
 bool forkLow = false;
 const char del[] = ":";
+int pos = 130;
 
 void runUntilStop(int direction, int timeToRun = 0);
 void runMotors(int timeToRun = 0, int leftMotorSpeed = MAX_SPEED, int rightMotorSpeed = MAX_SPEED);

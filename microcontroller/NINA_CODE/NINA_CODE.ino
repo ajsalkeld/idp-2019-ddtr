@@ -35,7 +35,7 @@ void setup()
   //}
   AFMS.begin();            // Starts with default freq
   servo.attach(SERVO_PIN); // attaches the servo on pin 9 to the servo object
-  servo.write(130);
+  servo.write(105);
 
   pinMode(TRIGGER_PIN, OUTPUT); // Sets the trigPin as an Output
   pinMode(ECHO_PIN, INPUT);     // Sets the echoPin as an Input
@@ -67,6 +67,8 @@ void setup()
 
   Udp.begin(localPort);
   ultrasensorId = timer.setInterval(125, ultrasonicChecker); // check ultrasonic 
+  timer.enable(ultrasensorId);
+
 }
 
 void loop()
@@ -186,7 +188,7 @@ void loop()
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(DROP);
       delay(30);
-      runUntilStop(NINA_BACKWARDS, 500);
+      runMotors(3000,-MAX_SPEED, -MAX_SPEED);
       liftFork();
       timer.enable(ultrasensorId);
       carryingMine = false;
@@ -201,6 +203,11 @@ void loop()
       sendAcknowledgement(packetBuffer, packetSize);
       ultrasonicChecker();
     }
+    else if (command == "check hall")
+    {
+      sendAcknowledgement(packetBuffer, packetSize);
+      lowerFork(DROP);
+    }
     else if (command == "get status")
     {
       sendAcknowledgement(packetBuffer, packetSize);
@@ -210,6 +217,12 @@ void loop()
     {
       sendAcknowledgement(packetBuffer, packetSize);
       timer.enable(ultrasensorId);
+    }
+    else if (command == "diagnostics")
+    {
+      sendAcknowledgement(packetBuffer, packetSize);
+      diagIP = remoteIP;
+      diagPort = remotePort;
     }
     else
     {
@@ -281,8 +294,7 @@ void stopMotors()
   delay(250);
   rightMotor->run(RELEASE);
   leftMotor->run(RELEASE);
-  if (stopTimerId)
-    timer.deleteTimer(stopTimerId);
+  if (stopTimerId) timer.deleteTimer(stopTimerId);
 }
 // timeToRun in millieconds
 void runUntilStop(int direction, int timeToRun)
@@ -348,11 +360,13 @@ void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
 void liftFork()
 {
   forkLow = false;
-  for (int pos = 210; pos >= 130; pos -= 1)
-  { // goes from 0 degrees to 180 degrees
+  if (pos < 105) pos = 107;
+  while (pos > 105)
+  {
     // in steps of 1 degree
+    pos -= 2;
     servo.write(pos); // tell servo to go to position in variable 'pos'
-    delay(30);        // waits 15ms for the servo to reach the position
+    delay(15);        // waits 15ms for the servo to reach the position
   }
 }
 
@@ -362,17 +376,21 @@ void lowerFork(int dropOrPick)
   switch (dropOrPick)
   {
   case PICK_UP:
-    for (int pos = 130; pos <= 170; pos += 1)
-    { // goes from 0 degrees to 180 degrees
+    if (pos >= 130) pos = 129;
+    while (pos < 130)
+    { 
       // in steps of 1 degree
+      pos += 1;
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
     }
     break;
   case DROP:
-    for (int pos = 130; pos <= 165; pos += 1)
-    { // goes from 0 degrees to 180 degrees
+    if (pos > 115) pos = 114;
+    while (pos < 115)
+    { 
       // in steps of 1 degree
+      pos += 1;
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
     }
@@ -382,30 +400,53 @@ void lowerFork(int dropOrPick)
 
 void ultrasonicChecker()
 {
+  // Note that everything is blocked in this function. Timers will not work.
   if (!carryingMine & !forkLow)
   {
     // Get the distance
     getUSDistance();
-    // Prints the distance on the Serial Monitor
-    if (distance < 22)
+
+    if (distance < 20)  // If US detects mine is close
     {
       Serial.println("Close to mine");
       stopMotors();
+      //getUSDistance();
+
+      // Report back
       Udp.beginPacket(remoteIP, remotePort);
       Udp.write("Close to mine ");
       char distchar = distance;
       Udp.write(distance);
       Udp.endPacket();
+
       // disable timer
       timer.disable(ultrasensorId);
-      // TODO: check hall sensor
+
+      // Move forward over mine and check hall sensor
+      // calculate time to run forward, 7.5 cm/s
+      if (distance > 11) {
+        float timeForMine = (distance - 11) / 7.5 * 1000;
+        runMotors(0, 100, 100); // Drive to 11cm away
+        Serial.println((int)timeForMine);
+        lowerFork(DROP); // Lower for for hall sensor
+        delay((int)timeForMine);
+        stopMotors();
+        // CHECK SENSOR DIGITAL
+        delay(5000);
+        runMotors(0,-100,-100);
+        delay(1000);
+        liftFork();
+      }
+
+      getUSDistance();
       // pickup
       lowerFork(PICK_UP);
-      // calculate time to run forward, 7.7 cm/s
-      float timeForMine = distance / 7.5 * 1000;
-      runMotors((int)timeForMine, 100, 100); // TODO: Make this better to use the ultrasonic distance.
+      float timeForMine = (distance) / 7.5 * 1000;
+      runMotors(0, 100, 100);
+      Serial.println((int)timeForMine);
+      delay((int)timeForMine);
+      stopMotors();
       liftFork();
-
       // Check US again - reattempt if not picked up
       getUSDistance();
 
@@ -418,8 +459,7 @@ void ultrasonicChecker()
       }
       else {
         Udp.beginPacket(remoteIP, remotePort);
-        Udp.write("Picked up mine ");
-        Udp.write((char)timeForMine);
+        Udp.write("Picked up mine");
         Udp.endPacket();
       }
     }
