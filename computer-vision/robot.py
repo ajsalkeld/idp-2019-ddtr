@@ -318,7 +318,20 @@ class Robot():
 
         origin, dirs = v
 
-        return pt(idx=origin).pos + np.matmul(dirs, self.centre_offset)
+        distorted = pt(idx=origin).pos + np.matmul(dirs, self.centre_offset)
+
+        arena_centre = np.array([1.2, 1.2])
+
+        radius = distorted - arena_centre
+
+        relative = radius / (1.2 * SQRT2)
+
+        correction -= 0.06 * relative
+
+        return distorted + correction
+
+        
+
 
 
     def get_pos_estimate(self):
