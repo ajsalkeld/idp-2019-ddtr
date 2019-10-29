@@ -1,5 +1,6 @@
 from global_stuff import *
 from arena import *
+from udpComms import CURR_UDP_DATA
 
 if USE_VIDEO:
     import udpComms as udpc
@@ -25,8 +26,8 @@ RED1 = np.array([0, 20])
 RED2 = np.array([340, 360])
 
 
-MAX_THETA_RATE = 0.2
-MAX_TRANS_RATE = 0.3
+MAX_THETA_RATE = 0.35
+MAX_TRANS_RATE = 0.5
 
 POS_DEADBAND_W = 0.04 # m
 
@@ -36,17 +37,18 @@ class Robot():
         self.w_m = 0.175
         self.h_m = 0.155
         self.dims = np.array([self.h_m, self.w_m])
-        self.b_box1_offset = np.array([-0.03, -0.03])
-        self.b_box1_wh = np.array([0.2, 0.2])
-        self.b_box2_offset = self.b_box1_offset
-        self.b_box2_wh = np.array([0.06, 0.1])
-        self.b_box2_offset[0] += self.b_box1_wh[0]/2 - self.b_box2_wh[0]/2
-        self.b_box2_offset[1] += self.b_box1_wh[1] - 0.01        
+        self.centre_offset = np.array([0.065, 0.095])
+        self.b_box1_offset = np.array([-0.170, -0.150])
+        self.b_box1_wh = np.array([0.340, 0.400])
+        # self.b_box2_offset = self.b_box1_offset
+        # self.b_box2_wh = np.array([0.06, 0.1])
+        # self.b_box2_offset[0] += self.b_box1_wh[0]/2 - self.b_box2_wh[0]/2
+        # self.b_box2_offset[1] += self.b_box1_wh[1] - 0.01        
 
         if not USE_VIDEO:
-            self.origin_history = [np.array([200, 200])]
-            self.axes_history = [np.array([[0, -1], [-1, 0]])]
-            self.timestamps = [time.time()]
+            self.origin_history = []
+            self.axes_history = []
+            self.timestamps = []
 
         else:
             self.origin_history = []
@@ -114,11 +116,13 @@ class Robot():
 
             if not self.wants_mine_data():
 
-                self.mine_locs.sort(lambda loc: loc[0], reverse = True)
+                self.mine_locs = [mine.pos for mine in self.mine_locs]
+                self.mine_locs.sort(key=lambda loc: loc[0], reverse = True)
+                
+                self.target_mine = self.mine_locs[0]
 
-                print(self.mine_locs)
+                print("picked mine at", self.target_mine)
 
-                self.target_mine = pt(idx=mine_locs[0]).pos
                 self.state = "moving to mine"
 
         #should have a best mine identified
@@ -132,22 +136,25 @@ class Robot():
                     self.state = "moving to mine y"
 
                 if self.state == "moving to mine y":
-                    self.set_target_pos(np.array([SAFE_LINE_X_POS, self.target_mine[1]]))
+                    if self.state != self.prev_state:
+                        self.set_target_pos(np.array([SAFE_LINE_X_POS, self.target_mine[1]]))
                     if self.achieved_target:
                         self.state = "moving to mine x"
 
                 if self.state == "moving to mine x":
-                    self.set_target_pos(self.target_mine)
+                    if self.state != self.prev_state:
+                        self.set_target_pos(self.target_mine)
 
                     # change this to wait for packet from nina
                     if self.achieved_target:
                         self.state = "picking up mine"
 
         elif self.state == "picking up mine":
-
-            # change this to wait for packet from nina
-            self.state = "moving to live bin" # or dud bin
-            self.has_mine = "live"
+            
+            if "Picked up mine" in CURR_UDP_DATA:
+                # need mine type from Nina
+                self.state = "moving to live bin" # or dud bin
+                self.has_mine = "live"
 
         
         elif "to bin" in self.state:
@@ -158,21 +165,26 @@ class Robot():
                 self.state = "moving to bin x"
 
             if self.state == "moving to bin x":
-                self.set_target_pos(np.array([SAFE_LINE_X_POS, self.target_mine[1]]))
+                if self.state != self.prev_state:
+                    self.set_target_pos(np.array([SAFE_LINE_X_POS, self.target_mine[1]]))
                 if self.achieved_target:
                     self.state = "moving to mine y"
 
             if self.state == "moving to bin y":
                 if self.has_mine == "live":
-                    self.set_target_pos(np.array([SAFE_LINE_X_POS, LIVE_DEPOSIT_Y_POS]))
+                    if self.state != self.prev_state:
+                        self.set_target_pos(np.array([SAFE_LINE_X_POS, LIVE_DEPOSIT_Y_POS]))
                 elif self.has_mine == "dead":
-                    self.set_target_pos(np.array([SAFE_LINE_X_POS, DEAD_DEPOSIT_Y_POS]))
+                    if self.state != self.prev_state:
+                        self.set_target_pos(np.array([SAFE_LINE_X_POS, DEAD_DEPOSIT_Y_POS]))
                 
                 if self.achieved_target:
                     self.state = "rotating to bin"
 
+
             if self.state == "rotating to bin":
-                self.set_target_rot(np.array([1, 0]))
+                # self.set_target_rot(np.array([1, 0]))
+                self.send_cmd("stop")
 
                 if self.achieved_target:
                     self.state = "depositing mine"
@@ -211,20 +223,10 @@ class Robot():
         cv2_cross(img, c_idx, 3, (255, 0, 255), 2)
         img = draw_line_from_params(img, c_idx, axes[1], (0, 255, 0))
 
-        a = pt(pos=np.matmul(axes, self.b_box1_offset)).idx
-        # c = pt(pos=np.matmul(axes, self.b_box1_wh)).idx
-        # b = pt(pos=np.matmul(axes, self.b_box2_offset)).idx
-        # d = pt(pos=np.matmul(axes, self.b_box2_wh)).idx
 
-        bound_cntr = np.array([ tuple([int(x), int(y)]) for x, y in [
-            c_idx + a, 
-            c_idx + a + self.b_box1_wh[1]*axes[1],
-            c_idx + a + self.b_box1_wh[0]*axes[0] + self.b_box1_wh[1]*axes[1],
-            c_idx + a + self.b_box1_wh[0]*axes[0]
-        ]], dtype=np.int32)
-
-        cv2.drawContours(img, [bound_cntr], 0, (255, 255, 255), 1)
-
+        bbox_ctr = self.get_bbox_ctr()
+        if bbox_ctr is not None:
+            cv2.drawContours(img, [bbox_ctr], 0, (255, 255, 255), 1)
 
 
         # img = cv2.bitwise_and(img, ROBOT_MASK)
@@ -255,6 +257,11 @@ class Robot():
             # img = draw_line_from_params(img, c_idx, axes[1], (255, 0, 0))
 
 
+        if self.target_mine is not None:
+            cv2_cross(img, pt(pos=self.target_mine).idx, 3, (127, 127, 255), 2)
+
+
+
         # useful info
         if self.latest_cmd is not None:
             cv2_text(img, f"latest command: {self.latest_cmd}", (50, 50), (255, 255, 255))
@@ -265,9 +272,12 @@ class Robot():
         if self.pos_err is not None:
             cv2_text(img, f"target pos dist: {self.pos_err:.2f} m", (50, 80), (255, 255, 255))
 
+
         cv2_text(img, f"left wheel:  {round(self.l_cmd*255)}", (50, 95), (255, 255, 255))
         cv2_text(img, f"right wheel: {round(self.r_cmd*255)}", (50, 110), (255, 255, 255))
         cv2_text(img, f"ok to translate: {self.ok_to_translate}", (50, 125), (255, 255, 255))
+        cv2_text(img, f"udp data: {CURR_UDP_DATA}", (50, 140), (255, 255, 255))
+        cv2_text(img, f"state: {self.state}", (50, 155), (255, 255, 255))
 
 
         # mpl_show(robot_img)
@@ -277,6 +287,29 @@ class Robot():
         return img
 
 
+
+    def get_bbox_ctr(self):
+
+        v = self.get_pos_estimate()
+        if v is None:
+            return None
+
+        origin, axes = v
+
+        centre = self.get_centre_coords()
+
+        c_idx = pt(pos=centre).idx
+        a = np.matmul(axes, self.b_box1_offset / IDX_TO_COORD_SF)
+
+        bound_cntr = np.array([ tuple([int(x), int(y)]) for x, y in [
+            c_idx + a, 
+            c_idx + a + self.b_box1_wh[1]*axes[1] / IDX_TO_COORD_SF,
+            c_idx + a + (self.b_box1_wh[0]*axes[0] + self.b_box1_wh[1]*axes[1])  / IDX_TO_COORD_SF,
+            c_idx + a + self.b_box1_wh[0]*axes[0] / IDX_TO_COORD_SF
+        ]], dtype=np.int32)
+
+        return bound_cntr
+
     def get_centre_coords(self):
 
         v = self.get_pos_estimate()
@@ -285,14 +318,12 @@ class Robot():
 
         origin, dirs = v
 
-        offset = (self.dims - 0.005)/2
-
-        return pt(idx=origin).pos + np.matmul(dirs, offset)
+        return pt(idx=origin).pos + np.matmul(dirs, self.centre_offset)
 
 
     def get_pos_estimate(self):
 
-        if len(self.origin_history) < 2: # make this 3
+        if len(self.origin_history) < 1: # make this 3
             return None
 
         # punish records which were a long time ago
@@ -312,6 +343,7 @@ class Robot():
         outrageous_speed = 0.4 # m/s
 
         est = self.get_pos_estimate()
+
 
         if est is None:
             # print("pos history", self.origin_history)
@@ -355,16 +387,20 @@ class Robot():
 
 
     # in real world coords - also sets target rot
-    def set_target_pos(self, t_pos):
-
-        self.achieved_target = False
-        self.ok_to_translate = False
+    def set_target_pos(self, t_pos, force = False):
 
         centre = self.get_centre_coords()
 
         if centre is None:
             return False
         
+        if pythag(t_pos - centre) < 0.03 and not force:
+            print("already at target pos")
+            return False
+
+        self.achieved_target = False
+        self.ok_to_translate = False
+
         self.t_pos = t_pos
         self.t_start_pos = centre
         
@@ -455,13 +491,13 @@ class Robot():
 
             
             # hysteresis on ok_to_translate
-            else:
+            if abs(theta_err) < DEG_TO_RAD * 5:
                 if self.t_pos is None:
                     self.achieved_target = True
                     self.t_rot = None
                 else:
-
                     if not self.ok_to_translate:
+                        print("ok to translate!")
                         self.send_cmd("stop")
                         update_motors = False
                         self.ok_to_translate = True
@@ -476,7 +512,7 @@ class Robot():
 
                 # self.outside_deadband provides hysteresis
                 if abs(perp_dist_from_t) > POS_DEADBAND_W and not self.outside_deadband:
-                
+            
                     self.ok_to_translate = False
                     print("stopped - outside deadband")
                     self.send_cmd("stop")
@@ -538,11 +574,12 @@ class Robot():
 
     def set_mine_locs(self, mine_centres):
 
-        if self.mine_locs is None:
+        if len(mine_centres) > 0:
             self.mine_locs = mine_centres
+            self.wants_mine_data_flag = False
 
-        self.wants_mine_data_flag = False
-
+        else:
+            print("no mines detected")
 
 
 Nina = Robot()
@@ -647,7 +684,6 @@ def detect_robot(img):
     cv2.drawContours(img, red_cs, -1, (255, 255, 255), -1)
 
 
-
     v1 = np.array(red_lines[0][:2])
     v2 = np.array(red_lines[1][:2])
     line_vs = np.array([v1, v2])
@@ -690,8 +726,10 @@ def detect_robot(img):
 
     intersect_coords_1 = line_pts[0] + coeffs[0] * line_vs[0]
     intersect_coords_2 = line_pts[1] + coeffs[1] * line_vs[1]
-    cv2_cross(img, intersect_coords_1.astype(int), 3, (255, 255, 255), 2)
-    cv2_cross(img, intersect_coords_2.astype(int), 3, (255, 255, 255), 2)
+    # cv2_cross(img, intersect_coords_1.astype(int), 3, (255, 255, 255), 2)
+    # cv2_cross(img, intersect_coords_2.astype(int), 3, (255, 255, 255), 2)
+
+    # mpl_show(img)
 
     # make sure intersection coords agree (sanity check)
     diff = intersect_coords_1 - intersect_coords_2

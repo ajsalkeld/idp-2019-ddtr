@@ -8,14 +8,24 @@ pt = Point
 
 
 
-def do_mine_stuff(frame):
+def do_mine_stuff(frame, nina_mask_ctr):
 
     frame_grey = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
 
     x1, y1 = MINE_AREA_TOP_LEFT.cv_tup
     x2, y2 = MINE_AREA_BOT_RIGHT.cv_tup
     mine_area_img = frame_grey[y1:y2, x1:x2].copy()
-    mine_area_mask = ARENA_MASK[y1:y2, x1:x2].copy()
+
+    arena_mask_cpy = ARENA_MASK.copy()
+
+    if nina_mask_ctr is not None:
+        cv2.drawContours(arena_mask_cpy, [nina_mask_ctr], 0, (0, 0, 0), -1)
+
+    mine_area_mask = arena_mask_cpy[y1:y2, x1:x2]
+
+
+    # mpl_show(mine_area_mask)
+
     # add robot to mask when it's detected
     # mask required to eliminate extreme gradients
     
@@ -56,13 +66,18 @@ general_vid_params = {
 }
 
 mine_vid_params = {
+    # this sets resolution lower
+    "h_res" : {"idx" : 3, "setval" : RESOLUTION[0]},
+    "v_res" : {"idx" : 4, "setval" : RESOLUTION[1]},
     "saturation" : {"idx" : 12, "setval" : 28.0},
     "exposure" : {"idx" : 15, "setval" : -7.0} # -8.0 is max exposure
 }
 
 robot_vid_params = {
+    "h_res" : {"idx" : 3, "setval" : RESOLUTION[0]},
+    "v_res" : {"idx" : 4, "setval" : RESOLUTION[1]},
     "saturation" : {"idx" : 12, "setval" : 28.0},
-    "exposure" : {"idx" : 15, "setval" : -4.0} # this sets resolution lower
+    "exposure" : {"idx" : 15, "setval" : -4.0}
 }
 
 # USE THESE WHEN DONE SO OTHER PEOPLE DON'T REALISE (old camera exposure)
@@ -107,36 +122,42 @@ if __name__ == "__main__":
 
         mine_data = []
 
-        i = 0
+        # i = 0
 
         while True:
 
-            # r_frame = cv2.resize(r_frame, tuple(RESOLUTION))
             if Nina.wants_mine_data():
                 
+                print("getting mines")
+
                 set_params(cap, mine_vid_params)
 
                 m_frame = get_frame(cap)
                 cv2.imwrite("mine_mode.jpg", m_frame)
-                # show_img(m_frame)
-                mine_data = do_mine_stuff(m_frame)
+
+                mine_data = do_mine_stuff(m_frame, Nina.get_bbox_ctr())
+
                 Nina.set_mine_locs([centre for centre, rad in mine_data])
 
                 set_params(cap, robot_vid_params)
 
 
             r_frame = get_frame(cap)
-            cv2.imwrite("robot_mode.jpg", r_frame)
+            # cv2.imwrite("robot_mode.jpg", r_frame)
            
+            r_frame = cv2.resize(r_frame, tuple(RESOLUTION))
+
             Nina.update_pos(r_frame)
 
-            if i < 10:
-                Nina.set_target_pos(np.array([1.0, 1.5]))
+            # if i < 10:
+            #     Nina.set_target_pos(np.array([1.0, 1.5]))
 
-            if Nina.achieved_target:
-                Nina.set_target_pos(np.random.rand(2)*1.4 + 0.5)
-                print("set new target")
-            # Nina.update_state()
+            # if Nina.achieved_target:
+            #     Nina.wants_mine_data_flag = True
+            #     # Nina.set_target_pos(np.random.rand(2)*1.4 + 0.5)
+            #     print("set new target")
+
+            Nina.update_state()
 
             Nina.illustrate(r_frame)
             
@@ -148,7 +169,7 @@ if __name__ == "__main__":
 
                 # time.sleep(2)
 
-            i += 1
+            # i += 1
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
@@ -168,17 +189,14 @@ if __name__ == "__main__":
 
         if DO_ROBOT:
             Nina.update_pos(img)
-            Nina.update_pos(img)
-            Nina.update_pos(img)
-            Nina.update_pos(img)
+            Nina.illustrate(img)
 
             # Nina.set_target_pos(np.array([2.0, 2.0]))
-            Nina.illustrate(img)
             # Nina.control_to_target()
 
         mine_data = []
         if DO_MINES:
-            mine_data = do_mine_stuff(img)
+            mine_data = do_mine_stuff(img, Nina.get_bbox_ctr())
 
         illustrate(img, mine_data)
         mpl_show(img)

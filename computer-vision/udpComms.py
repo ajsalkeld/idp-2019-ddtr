@@ -1,16 +1,17 @@
 from global_stuff import *
 
-
+CURR_UDP_DATA = "none"
 
 def rxThread():
     s.sendto(b"Hello from python", (IP, 2390))
     try:
         while True:
+            global CURR_UDP_DATA
             # Receive BUFFER_SIZE bytes data
             # data is a list with 2 elements
             # first is data
             # second is client address
-            data = s.recvfrom(BUFFER_SIZE)
+            CURR_UDP_DATA = str(s.recvfrom(BUFFER_SIZE))
             # if data:
                 ## print received data
                 # print('Client to Server: ' , data)
@@ -24,7 +25,7 @@ def rxThread():
 def sendCommand(command):
     s.sendto(command, (IP, 2390))
 
-IP = "192.168.137.185"
+IP = "192.168.137.38"
 
 # def setup():
 # bind all IP
@@ -39,9 +40,8 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind((HOST, PORT))
 # Start thread for receiving data
 
-
 if __name__ == "__main__":
     sendCommand(b"stop")
-else:
+elif USE_VIDEO:
     rxthread = threading.Thread(target=rxThread)
     rxthread.start()
