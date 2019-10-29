@@ -326,7 +326,7 @@ class Robot():
 
         relative = radius / (1.2 * SQRT2)
 
-        correction -= 0.06 * relative
+        correction = - 0.06 * relative
 
         return distorted + correction
 
