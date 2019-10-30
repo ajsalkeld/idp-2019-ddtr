@@ -35,10 +35,11 @@ void setup()
   //}
   AFMS.begin();            // Starts with default freq
   servo.attach(SERVO_PIN); // attaches the servo on pin 9 to the servo object
-  servo.write(105);
+  servo.write(120);
 
   pinMode(TRIGGER_PIN, OUTPUT); // Sets the trigPin as an Output
   pinMode(ECHO_PIN, INPUT);     // Sets the echoPin as an Input
+  pinMode(HALL_PIN, INPUT);     // Sets hall pin as an input
   // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE)
   {
@@ -189,6 +190,7 @@ void loop()
       lowerFork(DROP);
       delay(30);
       runMotors(3000,-MAX_SPEED, -MAX_SPEED);
+      delay(2000);
       liftFork();
       timer.enable(ultrasensorId);
       carryingMine = false;
@@ -206,7 +208,7 @@ void loop()
     else if (command == "check hall")
     {
       sendAcknowledgement(packetBuffer, packetSize);
-      lowerFork(DROP);
+      lowerFork(TEST);
     }
     else if (command == "get status")
     {
@@ -360,11 +362,11 @@ void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
 void liftFork()
 {
   forkLow = false;
-  if (pos < 105) pos = 107;
-  while (pos > 105)
+  if (pos < 120) pos = 118;
+  while (pos > 120)
   {
     // in steps of 1 degree
-    pos -= 2;
+    pos -= 1;
     servo.write(pos); // tell servo to go to position in variable 'pos'
     delay(15);        // waits 15ms for the servo to reach the position
   }
@@ -376,8 +378,18 @@ void lowerFork(int dropOrPick)
   switch (dropOrPick)
   {
   case PICK_UP:
-    if (pos >= 130) pos = 129;
-    while (pos < 130)
+    if (pos >= 160) pos = 159;
+    while (pos < 160)
+    { 
+      // in steps of 1 degree
+      pos += 1;
+      servo.write(pos); // tell servo to go to position in variable 'pos'
+      delay(15);        // waits 15ms for the servo to reach the position
+    }
+    break;
+  case TEST:
+    if (pos > 140) pos = 139;
+    while (pos < 140)
     { 
       // in steps of 1 degree
       pos += 1;
@@ -386,8 +398,8 @@ void lowerFork(int dropOrPick)
     }
     break;
   case DROP:
-    if (pos > 115) pos = 114;
-    while (pos < 115)
+    if (pos > 150) pos = 149;
+    while (pos < 150)
     { 
       // in steps of 1 degree
       pos += 1;
@@ -424,24 +436,45 @@ void ultrasonicChecker()
 
       // Move forward over mine and check hall sensor
       // calculate time to run forward, 7.5 cm/s
+      bool liveMine;
       if (distance > 11) {
-        float timeForMine = (distance - 11) / 7.5 * 1000;
+        float timeForMine = (distance - 13) / 7.9 * 1000;
         runMotors(0, 100, 100); // Drive to 11cm away
         Serial.println((int)timeForMine);
-        lowerFork(DROP); // Lower for for hall sensor
+        lowerFork(TEST); // Lower for for hall sensor
         delay((int)timeForMine);
         stopMotors();
-        // CHECK SENSOR DIGITAL
+        // check hall sensor:
+        switch (digitalRead(HALL_PIN)) {
+          case HIGH:
+            // Not a live mine
+            liveMine = false;
+            break;
+          case LOW:
+            // Live mine
+            liveMine = true;
+            break;
+        }
         delay(5000);
         runMotors(0,-100,-100);
         delay(1000);
         liftFork();
       }
+      else {
+        // reverse back...
+        runMotors(0, -100, -100);
+        delay(2000);
+        stopMotors();
+        // retry
+        carryingMine = false;
+        timer.enable(ultrasensorId);
+        return;
+      }
 
       getUSDistance();
       // pickup
       lowerFork(PICK_UP);
-      float timeForMine = (distance) / 7.5 * 1000;
+      float timeForMine = (distance) / 7.9 * 1000;
       runMotors(0, 100, 100);
       Serial.println((int)timeForMine);
       delay((int)timeForMine);
@@ -455,12 +488,16 @@ void ultrasonicChecker()
         Udp.write("Failed to pickup mine, re-attempting");
         Udp.endPacket();
         carryingMine = false;
-        timer.disable(ultrasensorId);
+        timer.enable(ultrasensorId);
+        return;
       }
       else {
         Udp.beginPacket(remoteIP, remotePort);
-        Udp.write("Picked up mine");
+        char messageReturn[50];
+        sprintf(messageReturn, "Picked up mine %d", liveMine);
+        Udp.write(messageReturn);
         Udp.endPacket();
+        carryingMine = true;
       }
     }
   }
