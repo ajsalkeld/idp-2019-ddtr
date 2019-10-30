@@ -2,6 +2,7 @@ from global_stuff import *
 
 from arena import *
 
+
 def find_mines(img, mask, img_x, img_y):
 
     h, w = np.shape(img)
@@ -64,7 +65,8 @@ def find_mines(img, mask, img_x, img_y):
             area = cv2.contourArea(c)
             radius = area**0.5
 
-            if area < 500:
+            if 40 < area < 500:
+                print("mine:", centre.pos, area)
                 mine_deets.append((centre, radius))
 
 
