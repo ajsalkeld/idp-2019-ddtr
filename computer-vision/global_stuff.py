@@ -9,7 +9,7 @@ import threading
 import math
 
 USE_VIDEO =  True
-DO_MINES = False
+DO_MINES = True
 DO_ROBOT = True
 F_NAME = "robot_mode.jpg"
 

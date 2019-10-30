@@ -18,10 +18,10 @@ def idx_to_prop(in_idx):
 #-------------------------------------------------
 
 # x, y
-GRID_TOP_LEFT_IDX = prop_to_idx([86/1600, 38/1200])
-GRID_BOT_RIGHT_IDX = prop_to_idx([1542/1600, 1128/1200])
+GRID_TOP_LEFT_IDX = prop_to_idx([32/640, 10/480])
+GRID_BOT_RIGHT_IDX = prop_to_idx([543/640, 450/480])
 GRID_TOP_LEFT_COORD = np.array([0.0, 0.3])
-GRID_BOT_RIGHT_COORD = np.array([2.4, 2.1])
+GRID_BOT_RIGHT_COORD = np.array([2.1, 2.1])
 
 IDX_TO_COORD_SF = (GRID_BOT_RIGHT_COORD - GRID_TOP_LEFT_COORD) / (GRID_BOT_RIGHT_IDX - GRID_TOP_LEFT_IDX)
 
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     print((y*2 -x).cv_tup)
 
 
-robot_mask_name = "pics/calib/robot_mode_mask.jpg"
+robot_mask_name = "pics/calib/robot_mask.jpg"
 ROBOT_MASK = cv2.imread(robot_mask_name)
 ROBOT_MASK = cv2.resize(ROBOT_MASK, tuple(RESOLUTION))
 
@@ -195,16 +195,16 @@ LIVE_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-TAPE_THICKNESS/2))
 DEAD_DEPOSIT_TOP_LEFT = Point(pos=(2.4-0.29, 2.4-0.9))
 DEAD_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-0.6-TAPE_THICKNESS/2))
 
-SAFE_LINE_X_POS = 2.4 - 0.55
-LIVE_DEPOSIT_Y_POS = 2.4 - 0.15
+SAFE_LINE_X_POS = 2.4 - 0.45
+LIVE_DEPOSIT_Y_POS = 2.4 - 0.25
 DEAD_DEPOSIT_Y_POS = 2.4 - 0.75
 
 
-# LHS_BOUND_LINE_TOP = Point(pos=(2.4-0.5, 0))
-# LHS_BOUND_LINE_BOT = Point(pos=(2.4-0.5, 2.4))
+LHS_BOUND_LINE_TOP = Point(pos=(2.4-0.5, 0))
+LHS_BOUND_LINE_BOT = Point(pos=(2.4-0.5, 2.4))
 
-# RHS_BOUND_LINE_TOP = Point(pos=(2.4-0.3, 0))
-# RHS_BOUND_LINE_BOT = Point(pos=(2.4-0.3, 2.4))
+RHS_BOUND_LINE_TOP = Point(pos=(2.4-0.3, 0))
+RHS_BOUND_LINE_BOT = Point(pos=(2.4-0.3, 2.4))
 
 def draw_arena_features(img):
 
@@ -219,12 +219,12 @@ def draw_arena_features(img):
                         (MINE_AREA_BOT_RIGHT - MINE_AREA_DILATION).cv_tup, (255, 100, 100), 1)
 
     # live mine deposit
-    # cv2.rectangle(img, LIVE_DEPOSIT_TOP_LEFT.cv_tup, LIVE_DEPOSIT_BOT_RIGHT.cv_tup, (0, 0, 255), 2)
+    cv2.rectangle(img, LIVE_DEPOSIT_TOP_LEFT.cv_tup, LIVE_DEPOSIT_BOT_RIGHT.cv_tup, (0, 0, 255), 2)
 
     # dead mine deposit
-    # cv2.rectangle(img, DEAD_DEPOSIT_TOP_LEFT.cv_tup, DEAD_DEPOSIT_BOT_RIGHT.cv_tup, (0, 255, 0), 2)
+    cv2.rectangle(img, DEAD_DEPOSIT_TOP_LEFT.cv_tup, DEAD_DEPOSIT_BOT_RIGHT.cv_tup, (0, 255, 0), 2)
  
     # # bounding lines
-    # cv2.rectangle(img, LHS_BOUND_LINE_TOP.cv_tup, LHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)
-    # cv2.rectangle(img, RHS_BOUND_LINE_TOP.cv_tup, RHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)
+    cv2.rectangle(img, LHS_BOUND_LINE_TOP.cv_tup, LHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)
+    cv2.rectangle(img, RHS_BOUND_LINE_TOP.cv_tup, RHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)
  
