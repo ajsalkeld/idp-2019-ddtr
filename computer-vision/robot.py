@@ -26,8 +26,8 @@ RED1 = np.array([0, 20])
 RED2 = np.array([340, 360])
 
 
-MAX_THETA_RATE = 0.35
-MAX_TRANS_RATE = 0.5
+MAX_THETA_RATE = 0.5
+MAX_TRANS_RATE = 0.7
 
 POS_DEADBAND_W = 0.04 # m
 
@@ -91,14 +91,12 @@ class Robot():
 
         self.l_cmd = 0
         self.r_cmd = 0
-        self.last_l_cmd = 0
-        self.last_r_cmd = 0
-
+        
         self.theta_err = None
         self.pos_err = None
         self.latest_cmd = None
         self.latest_cmd_time = time.time()
-
+        self.latest_rcv_time = time.time()
 
     def update_state(self):
 
@@ -278,6 +276,7 @@ class Robot():
         cv2_text(img, f"ok to translate: {self.ok_to_translate}", (50, 125), (255, 255, 255))
         cv2_text(img, f"udp data: {CURR_UDP_DATA}", (50, 140), (255, 255, 255))
         cv2_text(img, f"state: {self.state}", (50, 155), (255, 255, 255))
+        cv2_text(img, f"centre: {centre[0]:.2f}, {centre[1]:.2f} m", (50, 170), (255, 255, 255))
 
 
         # mpl_show(robot_img)
@@ -326,7 +325,10 @@ class Robot():
 
         relative = radius / (1.2 * SQRT2)
 
-        correction = - 0.06 * relative
+        correction = - 0.12 * relative
+
+        # if do_correction:
+        #     return distorted + correction
 
         return distorted + correction
 
@@ -541,15 +543,15 @@ class Robot():
                 if self.ok_to_translate:                
 
                     # heading the right direction and ready to move forward.
-                    if self.pos_err > 0.1: #m
+                    if self.pos_err > 0.5: #m
 
                         self.l_cmd += MAX_TRANS_RATE
                         self.r_cmd += MAX_TRANS_RATE
                     
                     else:
 
-                        self.l_cmd += MAX_TRANS_RATE * (self.pos_err + 0.025)/0.125
-                        self.r_cmd += MAX_TRANS_RATE * (self.pos_err + 0.025)/0.125
+                        self.l_cmd += MAX_TRANS_RATE * (self.pos_err + 0.5)/1.5
+                        self.r_cmd += MAX_TRANS_RATE * (self.pos_err + 0.5)/1.5
 
 
             if update_motors:
@@ -579,6 +581,18 @@ class Robot():
                 udpc.sendCommand(cmd_txt.encode())
             self.latest_cmd = cmd_txt
             self.latest_cmd_time = t_now
+
+
+    def recv_update(self):
+
+        t_now = time.time() 
+        cmd_txt = "get update"
+        if t_now - self.latest_rcv_time > 0.2:
+            if USE_VIDEO:
+                print("sending:", cmd_txt)
+                udpc.sendCommand(cmd_txt.encode())
+
+            self.latest_rcv_time = t_now
 
 
     def wants_mine_data(self):

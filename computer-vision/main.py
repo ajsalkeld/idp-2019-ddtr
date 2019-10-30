@@ -104,6 +104,7 @@ def get_frame(cap):
 
 if __name__ == "__main__":
 
+
     if USE_VIDEO:
 
         # udpComms.setup()
@@ -122,11 +123,11 @@ if __name__ == "__main__":
 
         mine_data = []
 
-        # i = 0
+        i = 0
 
         while True:
 
-            if Nina.wants_mine_data():
+            if Nina.wants_mine_data() and DO_MINES:
                 
                 print("getting mines")
 
@@ -157,22 +158,31 @@ if __name__ == "__main__":
             #     # Nina.set_target_pos(np.random.rand(2)*1.4 + 0.5)
             #     print("set new target")
 
-            Nina.update_state()
+            # Nina.update_state()
 
             Nina.illustrate(r_frame)
             
-            Nina.control_to_target()
+            # Nina.control_to_target()
 
             to_show = illustrate(r_frame, mine_data)
+
+            grid = cv2.imread("pics/calib/arena3gridpoints.jpg")
+            grid = cv2.resize(grid, tuple(RESOLUTION))
+
+            to_show = cv2.add(grid, to_show)
 
             show_img(to_show)
 
                 # time.sleep(2)
 
             # i += 1
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
+            if key & 0xFF == ord('s'):
+                i += 1
+                cv2.imwrite("save{i}.jpg", to_show)
+                
 
 
         set_params(cap, default_vid_params)

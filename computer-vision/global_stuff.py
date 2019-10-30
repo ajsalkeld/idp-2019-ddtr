@@ -8,8 +8,8 @@ import socket
 import threading
 import math
 
-USE_VIDEO =  False
-DO_MINES = True
+USE_VIDEO =  True
+DO_MINES = False
 DO_ROBOT = True
 F_NAME = "robot_mode.jpg"
 
