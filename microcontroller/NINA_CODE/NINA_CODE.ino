@@ -152,7 +152,7 @@ void loop()
         runUntilStop(NINA_FORWARDS);
       }
     }
-    else if ((command.indexOf("run") >= 0) & (leftMotorSpeed != NULL) & (rightMotorSpeed != NULL))
+    else if ((command.indexOf("run") >= 0))
     {
       sendAcknowledgement(packetBuffer, packetSize);
       if (timeToRun >= 0)
@@ -189,8 +189,8 @@ void loop()
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(DROP);
       delay(30);
-      runMotors(3000,-MAX_SPEED, -MAX_SPEED);
-      delay(2000);
+      runMotors(1500,-MAX_SPEED, -MAX_SPEED);
+      delay(1000);
       liftFork();
       timer.enable(ultrasensorId);
       carryingMine = false;
@@ -436,7 +436,7 @@ void ultrasonicChecker()
 
       // Move forward over mine and check hall sensor
       // calculate time to run forward, 7.5 cm/s
-      bool liveMine;
+      liveMine = NULL;
       if (distance > 11) {
         float timeForMine = (distance - 13) / 7.9 * 1000;
         runMotors(0, 100, 100); // Drive to 11cm away
@@ -507,7 +507,7 @@ void sendStatus() {
   Udp.beginPacket(remoteIP, remotePort);
   char statusReport[100];
   getUSDistance();
-  sprintf(statusReport, "carryingMine: %d; forkLow: %d; distance: %d", carryingMine, forkLow, distance);
+  sprintf(statusReport, "\"carryingMine\": %d; \"livemine\": %d; \"forkLow\": %d; \"distance\": %d", carryingMine, liveMine, forkLow, distance);
   Udp.write(statusReport);
   Udp.endPacket();
 }
