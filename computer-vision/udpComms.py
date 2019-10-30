@@ -5,7 +5,7 @@ CURR_UDP_DATA = {}
 
 def rxThread():
     s.sendto(b"Hello from python", (IP, 2390))
-    # try:
+    try:
         while True:
             global CURR_UDP_DATA
             # Receive BUFFER_SIZE bytes data
@@ -30,7 +30,7 @@ def rxThread():
                 # print('Client to Server: ' , data)
                 ## Message is contained in data[0]
         # Close connection
-    # except Exception as e:
+    except Exception as e:
         print(e)
         print("stopping udp comms thread")
         sendCommand(b"stop")
