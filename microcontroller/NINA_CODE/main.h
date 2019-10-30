@@ -20,6 +20,7 @@
 #define ECHO_PIN 12
 #define TRIGGER_PIN 13
 #define SERVO_PIN 9
+#define HALL_PIN 4
 
 #define RIGHTWARDS 1
 #define LEFTWARDS 2
@@ -28,6 +29,7 @@
 
 #define PICK_UP 1
 #define DROP 2
+#define TEST 3
 
 IPAddress remoteIP; // For UDP. These will update when packets
 unsigned int remotePort; // are received.
