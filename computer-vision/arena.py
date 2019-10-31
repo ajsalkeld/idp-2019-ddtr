@@ -189,14 +189,16 @@ MINE_AREA_DILATION = Point(pos=(0.04, 0.04))
 MINE_AREA_TOP_LEFT -= MINE_AREA_DILATION
 MINE_AREA_BOT_RIGHT += MINE_AREA_DILATION
 
+MINE_BLIND_BAND = 0.4 # m
+
 LIVE_DEPOSIT_TOP_LEFT = Point(pos=(2.4-0.29, 2.4-0.3))
 LIVE_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-TAPE_THICKNESS/2))
 
 DEAD_DEPOSIT_TOP_LEFT = Point(pos=(2.4-0.29, 2.4-0.9))
 DEAD_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-0.6-TAPE_THICKNESS/2))
 
-SAFE_LINE_X_POS = 2.4 - 0.45
-LIVE_DEPOSIT_Y_POS = 2.4 - 0.25
+SAFE_LINE_X_POS = 2.4 - 0.5
+LIVE_DEPOSIT_Y_POS = 2.4 - 0.45
 DEAD_DEPOSIT_Y_POS = 2.4 - 0.75
 
 
@@ -218,13 +220,23 @@ def draw_arena_features(img):
     cv2.rectangle(img, (MINE_AREA_TOP_LEFT + MINE_AREA_DILATION).cv_tup, 
                         (MINE_AREA_BOT_RIGHT - MINE_AREA_DILATION).cv_tup, (255, 100, 100), 1)
 
+    # mine area - cutoff lines for close to blind regions
+    cv2.line(img, Point(pos=(MINE_AREA_BOT_RIGHT.pos[0], 2.4-MINE_BLIND_BAND)).cv_tup,
+                    Point(pos=(MINE_AREA_TOP_LEFT.pos[0],  2.4-MINE_BLIND_BAND)).cv_tup, (255, 50, 50), 1)
+  
+    cv2.line(img, Point(pos=(MINE_AREA_BOT_RIGHT.pos[0], MINE_BLIND_BAND)).cv_tup,
+                    Point(pos=(MINE_AREA_TOP_LEFT.pos[0], MINE_BLIND_BAND)).cv_tup, (255, 50, 50), 1)
+
+
     # live mine deposit
-    cv2.rectangle(img, LIVE_DEPOSIT_TOP_LEFT.cv_tup, LIVE_DEPOSIT_BOT_RIGHT.cv_tup, (0, 0, 255), 2)
+    # cv2.rectangle(img, LIVE_DEPOSIT_TOP_LEFT.cv_tup, LIVE_DEPOSIT_BOT_RIGHT.cv_tup, (0, 0, 255), 2)
+    # cv2_cross(img, Point(pos=(SAFE_LINE_X_POS, LIVE_DEPOSIT_Y_POS)).idx, 3, (255, 255, 255), 1)
+    # cv2_cross(img, Point(pos=(SAFE_LINE_X_POS, DEAD_DEPOSIT_Y_POS)).idx, 3, (255, 255, 255), 1)
 
     # dead mine deposit
-    cv2.rectangle(img, DEAD_DEPOSIT_TOP_LEFT.cv_tup, DEAD_DEPOSIT_BOT_RIGHT.cv_tup, (0, 255, 0), 2)
+    # cv2.rectangle(img, DEAD_DEPOSIT_TOP_LEFT.cv_tup, DEAD_DEPOSIT_BOT_RIGHT.cv_tup, (0, 255, 0), 2)
  
     # # bounding lines
-    cv2.rectangle(img, LHS_BOUND_LINE_TOP.cv_tup, LHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)
-    cv2.rectangle(img, RHS_BOUND_LINE_TOP.cv_tup, RHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)
+    # cv2.rectangle(img, LHS_BOUND_LINE_TOP.cv_tup, LHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)
+    # cv2.rectangle(img, RHS_BOUND_LINE_TOP.cv_tup, RHS_BOUND_LINE_BOT.cv_tup, (255, 0, 0), 1)
  

@@ -60,7 +60,7 @@ def rxThread():
 def sendCommand(command):
     s.sendto(command, (IP, 2390))
 
-IP = "192.168.137.25"
+IP = "192.168.137.183"
 
 # def setup():
 # bind all IP
@@ -77,7 +77,7 @@ s.bind((HOST, PORT))
 
 if __name__ == "__main__":
     sendCommand(b"stop")
-    sendCommand(b"drop mine")
+    # sendCommand(b"drop mine")
     # rxthread = threading.Thread(target=rxThread)
     # rxthread.start()
 else:

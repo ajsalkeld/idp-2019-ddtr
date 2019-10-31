@@ -138,10 +138,13 @@ if __name__ == "__main__":
 
                 mine_data = do_mine_stuff(m_frame, Nina.get_bbox_ctr())
 
+                # print(mine_data)
+                # continue
+
                 Nina.set_mine_locs([centre for centre, rad in mine_data])
 
                 set_params(cap, robot_vid_params)
-
+                
 
             r_frame = get_frame(cap)
             cv2.imwrite("robot_mode.jpg", r_frame)
@@ -174,10 +177,22 @@ if __name__ == "__main__":
             # i += 1
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
+                Nina.send_cmd("stop", True)
                 break
+            # if key & 0xFF == ord('s'):
+            #     i += 1
+            #     cv2.imwrite("save{i}.jpg", to_show)
+            
+            if key & 0xFF == ord('r'):
+                Nina.send_cmd("reset", True)
+            if key & 0xFF == ord('d'):
+                Nina.send_cmd("drop mine", True)
+            if key & 0xFF == ord('l'):
+                Nina.send_cmd("look mines", True)
+            if key & 0xFF == ord('k'):
+                Nina.send_cmd("stop mines", True)
             if key & 0xFF == ord('s'):
-                i += 1
-                cv2.imwrite("save{i}.jpg", to_show)
+                Nina.send_cmd("stop", True)
                 
 
 
