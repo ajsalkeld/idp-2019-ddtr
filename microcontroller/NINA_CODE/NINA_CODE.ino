@@ -20,8 +20,8 @@ int stopTimerId;
 int ultrasensorId;
 
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); // Shield object
-Adafruit_DCMotor *rightMotor = AFMS.getMotor(2);    // Motor object
-Adafruit_DCMotor *leftMotor = AFMS.getMotor(1);     // Motor object
+Adafruit_DCMotor *rightMotor = AFMS.getMotor(1);    // Motor object
+Adafruit_DCMotor *leftMotor = AFMS.getMotor(2);     // Motor object
 
 Servo servo;       // create servo object to control a servo
 SimpleTimer timer; // create timer object for stopping after time
@@ -150,6 +150,16 @@ void loop()
         runMotors(0, leftMotorSpeed, rightMotorSpeed);
       }
     }
+    else if ((command.indexOf("look mines") >= 0))
+    {
+      sendAcknowledgement(packetBuffer, packetSize);
+      lookForMines = true;
+    }
+    else if ((command.indexOf("stop mines") >= 0))
+    {
+      sendAcknowledgement(packetBuffer, packetSize);
+      lookForMines = false;
+    }
     else if (command == "lift fork")
     {
       sendAcknowledgement(packetBuffer, packetSize);
@@ -200,6 +210,7 @@ void loop()
       liveMine = false;
       delay(250);
       timer.enable(ultrasensorId);
+      lookForMines = false;
     }
     else
     {
@@ -307,14 +318,15 @@ void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
 
 void liftFork()
 {
-  /*if (pos < 120) pos = 118;
-  while (pos > 120)
+  /*if (pos < 125) pos = 127;
+  while (pos > 125)
   {
     // in steps of 1 degree
-    pos -= 1;
+    pos -= 5;
     servo.write(pos); // tell servo to go to position in variable 'pos'
-    delay(15);        // waits 15ms for the servo to reach the position
-  }*/
+    delay(75);        // waits 15ms for the servo to reach the position
+  }
+  delay(100);*/
   pos = 125;
   servo.write(pos);
   delay(100);
@@ -335,7 +347,7 @@ void lowerFork(int dropOrPick)
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
     }*/
-    pos = 158;
+    pos = 162;
     servo.write(pos);
 
     break;
@@ -369,7 +381,7 @@ void lowerFork(int dropOrPick)
 void ultrasonicChecker()
 {
   // Note that everything is blocked in this function. Timers will not work.
-  if (!carryingMine & !forkLow)
+  if (!carryingMine & !forkLow & lookForMines)
   {
     // Get the distance
     getUSDistance();
@@ -467,7 +479,7 @@ void sendStatus() {
   Udp.beginPacket(remoteIP, remotePort);
   char statusReport[100];
   getUSDistance();
-  sprintf(statusReport, "\"carryingMine\": %d; \"livemine\": %d; \"forkLow\": %d; \"distance\": %d", carryingMine, liveMine, forkLow, distance);
+  sprintf(statusReport, "\"carryingMine\": %d; \"livemine\": %d; \"forkLow\": %d; \"distance\": %d; \"lookForMines\": %d", carryingMine, liveMine, forkLow, distance, lookForMines);
   Udp.write(statusReport);
   Udp.endPacket();
 }
