@@ -152,7 +152,7 @@ void loop()
         runUntilStop(NINA_FORWARDS);
       }
     }
-    else if ((command.indexOf("run") >= 0) & (leftMotorSpeed != NULL) & (rightMotorSpeed != NULL))
+    else if ((command.indexOf("run") >= 0))
     {
       sendAcknowledgement(packetBuffer, packetSize);
       if (timeToRun >= 0)
@@ -189,9 +189,10 @@ void loop()
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(DROP);
       delay(30);
-      runMotors(3000,-MAX_SPEED, -MAX_SPEED);
-      delay(2000);
+      runMotors(1500,-MAX_SPEED, -MAX_SPEED);
+      delay(1000);
       liftFork();
+      delay(50);
       timer.enable(ultrasensorId);
       carryingMine = false;
     }
@@ -225,6 +226,13 @@ void loop()
       sendAcknowledgement(packetBuffer, packetSize);
       diagIP = remoteIP;
       diagPort = remotePort;
+    }
+    else if (command == "reset")
+    {
+      sendAcknowledgement(packetBuffer, packetSize);
+      liftFork();
+      carryingMine = false;
+      liveMine = false;
     }
     else
     {
@@ -361,15 +369,18 @@ void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
 
 void liftFork()
 {
-  forkLow = false;
-  if (pos < 120) pos = 118;
+  /*if (pos < 120) pos = 118;
   while (pos > 120)
   {
     // in steps of 1 degree
     pos -= 1;
     servo.write(pos); // tell servo to go to position in variable 'pos'
     delay(15);        // waits 15ms for the servo to reach the position
-  }
+  }*/
+  pos = 120;
+  servo.write(pos);
+  delay(100);
+  forkLow = false;
 }
 
 void lowerFork(int dropOrPick)
@@ -378,28 +389,33 @@ void lowerFork(int dropOrPick)
   switch (dropOrPick)
   {
   case PICK_UP:
-    if (pos >= 160) pos = 159;
-    while (pos < 160)
+    /*if (pos >= 165) pos = 164;
+    while (pos < 165)
     { 
       // in steps of 1 degree
       pos += 1;
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
-    }
+    }*/
+    pos = 165;
+    servo.write(pos);
+
     break;
   case TEST:
-    if (pos > 140) pos = 139;
-    while (pos < 140)
+    /*if (pos > 150) pos = 149;
+    while (pos < 150)
     { 
       // in steps of 1 degree
       pos += 1;
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
-    }
+    }*/
+    pos = 150;
+    servo.write(150);
     break;
   case DROP:
-    if (pos > 150) pos = 149;
-    while (pos < 150)
+    if (pos > 160) pos = 159;
+    while (pos < 160)
     { 
       // in steps of 1 degree
       pos += 1;
@@ -436,50 +452,52 @@ void ultrasonicChecker()
 
       // Move forward over mine and check hall sensor
       // calculate time to run forward, 7.5 cm/s
-      bool liveMine;
-      if (distance > 11) {
-        float timeForMine = (distance - 13) / 7.9 * 1000;
+      liveMine = NULL;
+      if (distance > 14) {
+        float timeForMine = (distance - 14) / 7.9 * 1000;
         runMotors(0, 100, 100); // Drive to 11cm away
         Serial.println((int)timeForMine);
+        getUSDistance();
         lowerFork(TEST); // Lower for for hall sensor
         delay((int)timeForMine);
         stopMotors();
-        // check hall sensor:
-        switch (digitalRead(HALL_PIN)) {
-          case HIGH:
-            // Not a live mine
-            liveMine = false;
-            break;
-          case LOW:
-            // Live mine
-            liveMine = true;
-            break;
-        }
-        delay(5000);
-        runMotors(0,-100,-100);
-        delay(1000);
-        liftFork();
       }
       else {
         // reverse back...
-        runMotors(0, -100, -100);
-        delay(2000);
+        float timeForMine = (13 - distance) / 7.9 * 1000;
+        runMotors(0, -100, -100); // Drive to 11cm away
+        Serial.println((int)timeForMine);
+        getUSDistance();
+        lowerFork(TEST); // Lower for for hall sensor
+        delay((int)timeForMine);
         stopMotors();
-        // retry
-        carryingMine = false;
-        timer.enable(ultrasensorId);
-        return;
       }
 
-      getUSDistance();
+      // check hall sensor:
+      switch (digitalRead(HALL_PIN)) {
+        case HIGH:
+          // Not a live mine
+          liveMine = false;
+          break;
+        case LOW:
+          // Live mine
+          liveMine = true;
+          break;
+      }
+      delay(5000);
+      runMotors(0,-100,-100);
+      delay(1000);
+
+      //getUSDistance();
       // pickup
       lowerFork(PICK_UP);
-      float timeForMine = (distance) / 7.9 * 1000;
+      float timeForMine = (distance) / 7.9 * 1000 + 1000;
       runMotors(0, 100, 100);
       Serial.println((int)timeForMine);
       delay((int)timeForMine);
       stopMotors();
       liftFork();
+      delay(250);
       // Check US again - reattempt if not picked up
       getUSDistance();
 
@@ -507,7 +525,7 @@ void sendStatus() {
   Udp.beginPacket(remoteIP, remotePort);
   char statusReport[100];
   getUSDistance();
-  sprintf(statusReport, "carryingMine: %d; forkLow: %d; distance: %d", carryingMine, forkLow, distance);
+  sprintf(statusReport, "\"carryingMine\": %d; \"livemine\": %d; \"forkLow\": %d; \"distance\": %d", carryingMine, liveMine, forkLow, distance);
   Udp.write(statusReport);
   Udp.endPacket();
 }
