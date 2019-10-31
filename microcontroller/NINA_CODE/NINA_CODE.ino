@@ -138,20 +138,6 @@ void loop()
       sendAcknowledgement(packetBuffer, packetSize);
       stopMotors();
     }
-    else if (command.indexOf("run until") >= 0)
-    {
-      sendAcknowledgement(packetBuffer, packetSize);
-      int posCommand = command.indexOf("run until");
-      if (posCommand > 0)
-      {
-        String numberPart = command.substring(0, posCommand);
-        runUntilStop(NINA_FORWARDS, numberPart.toInt());
-      }
-      else
-      {
-        runUntilStop(NINA_FORWARDS);
-      }
-    }
     else if ((command.indexOf("run") >= 0))
     {
       sendAcknowledgement(packetBuffer, packetSize);
@@ -163,21 +149,6 @@ void loop()
       {
         runMotors(0, leftMotorSpeed, rightMotorSpeed);
       }
-    }
-    else if (command.indexOf("reverse until") >= 0)
-    {
-      sendAcknowledgement(packetBuffer, packetSize);
-      runUntilStop(NINA_BACKWARDS);
-    }
-    else if (command.indexOf("turn right until") >= 0)
-    {
-      sendAcknowledgement(packetBuffer, packetSize);
-      runUntilStop(RIGHTWARDS);
-    }
-    else if (command.indexOf("turn left until") >= 0)
-    {
-      sendAcknowledgement(packetBuffer, packetSize);
-      runUntilStop(LEFTWARDS);
     }
     else if (command == "lift fork")
     {
@@ -221,18 +192,14 @@ void loop()
       sendAcknowledgement(packetBuffer, packetSize);
       timer.enable(ultrasensorId);
     }
-    else if (command == "diagnostics")
-    {
-      sendAcknowledgement(packetBuffer, packetSize);
-      diagIP = remoteIP;
-      diagPort = remotePort;
-    }
     else if (command == "reset")
     {
       sendAcknowledgement(packetBuffer, packetSize);
       liftFork();
       carryingMine = false;
       liveMine = false;
+      delay(250);
+      timer.enable(ultrasensorId);
     }
     else
     {
@@ -307,35 +274,6 @@ void stopMotors()
   if (stopTimerId) timer.deleteTimer(stopTimerId);
 }
 // timeToRun in millieconds
-void runUntilStop(int direction, int timeToRun)
-{
-  rightMotor->setSpeed(MAX_SPEED);
-  leftMotor->setSpeed(MAX_SPEED);
-  switch (direction)
-  {
-  case RIGHTWARDS:
-    rightMotor->run(BACKWARD);
-    leftMotor->run(BACKWARD);
-    break;
-  case LEFTWARDS:
-    rightMotor->run(FORWARD);
-    leftMotor->run(FORWARD);
-    break;
-  case NINA_FORWARDS:
-    rightMotor->run(BACKWARD);
-    leftMotor->run(FORWARD);
-    break;
-  case NINA_BACKWARDS:
-    rightMotor->run(FORWARD);
-    leftMotor->run(BACKWARD);
-    break;
-  }
-  if (timeToRun > 0)
-  {
-    stopTimerId = timer.setTimeout(timeToRun, stopMotors);
-  }
-}
-
 void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
 {
   int lDirection, rDirection;
@@ -352,12 +290,12 @@ void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
   if ((rightMotorSpeed >= 0) & (rightMotorSpeed <= 255))
   {
     rightMotor->setSpeed(rightMotorSpeed);
-    rDirection = BACKWARD;
+    rDirection = FORWARD;
   }
   else if ((rightMotorSpeed < 0) & (rightMotorSpeed >= -255))
   {
     rightMotor->setSpeed(-rightMotorSpeed);
-    rDirection = FORWARD;
+    rDirection = BACKWARD;
   }
   if (timeToRun > 0)
   {
@@ -377,7 +315,7 @@ void liftFork()
     servo.write(pos); // tell servo to go to position in variable 'pos'
     delay(15);        // waits 15ms for the servo to reach the position
   }*/
-  pos = 120;
+  pos = 125;
   servo.write(pos);
   delay(100);
   forkLow = false;
@@ -397,7 +335,7 @@ void lowerFork(int dropOrPick)
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
     }*/
-    pos = 165;
+    pos = 158;
     servo.write(pos);
 
     break;
@@ -410,18 +348,20 @@ void lowerFork(int dropOrPick)
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
     }*/
-    pos = 150;
-    servo.write(150);
+    pos = 145;
+    servo.write(pos);
     break;
   case DROP:
-    if (pos > 160) pos = 159;
+    /*if (pos > 160) pos = 159;
     while (pos < 160)
     { 
       // in steps of 1 degree
       pos += 1;
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
-    }
+    }*/
+    pos = 152;
+    servo.write(pos);
     break;
   }
 }
@@ -484,13 +424,15 @@ void ultrasonicChecker()
           liveMine = true;
           break;
       }
-      delay(5000);
+      delay(250);
       runMotors(0,-100,-100);
       delay(1000);
+      stopMotors();
 
       //getUSDistance();
       // pickup
       lowerFork(PICK_UP);
+      delay(100);
       float timeForMine = (distance) / 7.9 * 1000 + 1000;
       runMotors(0, 100, 100);
       Serial.println((int)timeForMine);
