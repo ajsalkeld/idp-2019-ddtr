@@ -22,6 +22,10 @@
 #define SERVO_PIN 9
 #define HALL_PIN 4
 
+#define RED_PIN 3
+#define GREEN_PIN 5
+#define AMBER_PIN 6
+
 #define RIGHTWARDS 1
 #define LEFTWARDS 2
 #define NINA_FORWARDS 3
@@ -45,6 +49,7 @@ bool forkLow = false;
 const char del[] = ":";
 int pos = 130;
 bool liveMine;
+bool lookForMines = false;
 
 void runUntilStop(int direction, int timeToRun = 0);
 void runMotors(int timeToRun = 0, int leftMotorSpeed = MAX_SPEED, int rightMotorSpeed = MAX_SPEED);
