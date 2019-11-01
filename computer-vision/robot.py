@@ -169,7 +169,14 @@ class Robot():
                         # print("setting target pos")
                         self.set_target_pos(np.array([SAFE_LINE_X_POS, self.target_mine[1]]))
                     if self.achieved_target:
+                        self.state = "moving to mine rotation"
+                        
+                if self.state == "moving to mine rotation":
+                    if self.state != self.prev_state:
+                        self.set_target_rot(np.array([-1, 0]))
+                    if self.achieved_target:
                         self.state = "moving to mine x"
+                        
 
                 if self.state == "moving to mine x":
                     if self.state != self.prev_state:
@@ -209,9 +216,9 @@ class Robot():
                     if self.state != self.prev_state:
                         self.set_target_pos(np.array([self.target_mine[0], 1.2]))
                     if self.achieved_target:
-                        self.state = "moving to edge mine rotate"
+                        self.state = "moving to edge mine rotation"
 
-                if self.state == "moving to edge mine rotate":
+                if self.state == "moving to edge mine rotation":
                     if self.state != self.prev_state:
                         self.set_target_rot(np.array([0, 1.2 - self.target_mine[0]]))
                     if self.achieved_target:
@@ -735,6 +742,13 @@ class Robot():
         if abs(self.l_cmd) < 0.01 and abs(self.r_cmd) < 0.01:
             self.send_cmd("stop")
             return
+
+        # avoid sending > 255 but maintain ratio
+        max_cmd = max(self.l_cmd, self.r_cmd)
+        if max_cmd > 1:
+            self.l_cmd /= max_cmd
+            self.r_cmd /= max_cmd
+
 
         l_int = int(round(self.l_cmd * 255))
         r_int = int(round(self.r_cmd * 255))
