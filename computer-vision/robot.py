@@ -27,7 +27,7 @@ RED2 = np.array([340, 360])
 
 
 MAX_THETA_RATE = 0.4
-MAX_TRANS_RATE = 0.8
+MAX_TRANS_RATE = 1
 
 POS_DEADBAND_W = 0.03 # m
 
@@ -684,18 +684,24 @@ class Robot():
                 self.l_cmd += theta_rate
                 self.r_cmd -= theta_rate
 
+            # correct rotation and no target pos -> achieved target
+            elif self.t_pos is None:
+                self.achieved_target = True
+                self.t_rot = None
+
+            # correct rotation and target pos -> ok to translate
+            elif not self.ok_to_translate:
+                print("ok to translate")
+                self.send_cmd("stop")
+                update_motors = False
+                self.ok_to_translate = True
             
             # hysteresis on ok_to_translate
-            if abs(theta_err) < DEG_TO_RAD * 5:
-                if self.t_pos is None:
-                    self.achieved_target = True
-                    self.t_rot = None
-                else:
-                    if not self.ok_to_translate:
-                        print("ok to translate!")
-                        self.send_cmd("stop")
-                        update_motors = False
-                        self.ok_to_translate = True
+            if abs(theta_err) > DEG_TO_RAD * 10 and self.ok_to_translate:
+                print("not ok to translate")
+                self.send_cmd("stop")
+                update_motors = False
+                self.ok_to_translate = False
 
 
             if self.t_pos is not None:
