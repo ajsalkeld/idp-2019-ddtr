@@ -407,98 +407,105 @@ void ultrasonicChecker()
 
     if (distance < 20)  // If US detects mine is close
     {
-      lookForMines = false;
-      Serial.println("Close to mine");
-      stopMotors();
-      //getUSDistance();
-
-      // Report back
-      Udp.beginPacket(remoteIP, remotePort);
-      Udp.write("Close to mine ");
-      char distchar = distance;
-      Udp.write(distance);
-      Udp.endPacket();
-
-      timer.disable(amberId);
-      digitalWrite(AMBER_PIN, HIGH);
-
-
-      // disable timer
-      timer.disable(ultrasensorId);
-
-      // Move forward over mine and check hall sensor
-      // calculate time to run forward, 7.5 cm/s
-      liveMine = NULL;
-      if (distance > 14) {
-        float timeForMine = (distance - 14) / 7.9 * 1000;
-        runMotors(0, 100, 100); // Drive to 11cm away
-        Serial.println((int)timeForMine);
-        getUSDistance();
-        lowerFork(TEST); // Lower for for hall sensor
-        delay((int)timeForMine);
-        stopMotors();
-      }
-      else {
-        // reverse back...
-        float timeForMine = (13 - distance) / 7.9 * 1000;
-        runMotors(0, -100, -100); // Drive to 11cm away
-        Serial.println((int)timeForMine);
-        getUSDistance();
-        lowerFork(TEST); // Lower for for hall sensor
-        delay((int)timeForMine);
-        stopMotors();
-      }
-
-      // check hall sensor:
-      switch (digitalRead(HALL_PIN)) {
-        case HIGH:
-          // Not a live mine
-          liveMine = false;
-          digitalWrite(GREEN_PIN, HIGH);
-          timer.setTimeout(5000, turnOffGreenAmber);
-          break;
-        case LOW:
-          // Live mine
-          liveMine = true;
-          break;
-      }
-      delay(250);
-      runMotors(0,-100,-100);
-      delay(1000);
-      stopMotors();
-
-      //getUSDistance();
-      // pickup
-      lowerFork(PICK_UP);
-      delay(100);
-      float timeForMine = (distance) / 7.9 * 1000 + 1000;
-      runMotors(0, 100, 100);
-      Serial.println((int)timeForMine);
-      delay((int)timeForMine);
-      stopMotors();
-      liftFork();
-      delay(250);
-      // Check US again - reattempt if not picked up
       getUSDistance();
+      if (distance < 20) {
+        lookForMines = false;
+        Serial.println("Close to mine");
+        stopMotors();
+        //getUSDistance();
 
-      /*if (distance < 20) {
+        // Report back
         Udp.beginPacket(remoteIP, remotePort);
-        Udp.write("Failed to pickup mine, re-attempting");
+        Udp.write("Close to mine ");
+        char distchar = distance;
+        Udp.write(distance);
         Udp.endPacket();
-        carryingMine = false;
-        lookForMines = true;
-        timer.enable(ultrasensorId);
-        return;
+
+        timer.disable(amberId);
+        digitalWrite(AMBER_PIN, HIGH);
+
+
+        // disable timer
+        timer.disable(ultrasensorId);
+
+        // Move forward over mine and check hall sensor
+        // calculate time to run forward, 7.5 cm/s
+        liveMine = NULL;
+        if (distance > 14) {
+          float timeForMine = (distance - 14) / 7.9 * 1000;
+          runMotors(0, 100, 100); // Drive to 11cm away
+          Serial.println((int)timeForMine);
+          getUSDistance();
+          lowerFork(TEST); // Lower for for hall sensor
+          delay((int)timeForMine);
+          stopMotors();
+        }
+        else {
+          // reverse back...
+          float timeForMine = (13 - distance) / 7.9 * 1000;
+          runMotors(0, -100, -100); // Drive to 11cm away
+          Serial.println((int)timeForMine);
+          getUSDistance();
+          lowerFork(TEST); // Lower for for hall sensor
+          delay((int)timeForMine);
+          stopMotors();
+        }
+
+        // check hall sensor:
+        switch (digitalRead(HALL_PIN)) {
+          case HIGH:
+            // Not a live mine
+            liveMine = false;
+            digitalWrite(GREEN_PIN, HIGH);
+            timer.setTimer(5000, turnOffGreenAmber, 1);
+            break;
+          case LOW:
+            // Live mine
+            liveMine = true;
+            break;
+        }
+        delay(250);
+        runMotors(0,-100,-100);
+        delay(1000);
+        stopMotors();
+
+        //getUSDistance();
+        // pickup
+        lowerFork(PICK_UP);
+        delay(100);
+        if (distance > 30) {
+          getUSDistance();
+          if (distance > 30) distance = 20;
+        }
+        float timeForMine = (distance) / 7.9 * 1000 + 1000;
+        runMotors(0, 100, 100);
+        Serial.println((int)timeForMine);
+        delay((int)timeForMine);
+        stopMotors();
+        liftFork();
+        delay(250);
+        // Check US again - reattempt if not picked up
+        getUSDistance();
+
+        /*if (distance < 20) {
+          Udp.beginPacket(remoteIP, remotePort);
+          Udp.write("Failed to pickup mine, re-attempting");
+          Udp.endPacket();
+          carryingMine = false;
+          lookForMines = true;
+          timer.enable(ultrasensorId);
+          return;
+        }
+        else {*/
+        if (liveMine) timer.enable(redId);
+        Udp.beginPacket(remoteIP, remotePort);
+        char messageReturn[50];
+        sprintf(messageReturn, "Picked up mine %d", liveMine);
+        Udp.write(messageReturn);
+        Udp.endPacket();
+        carryingMine = true;
+        //}
       }
-      else {*/
-      if (liveMine) timer.enable(redId);
-      Udp.beginPacket(remoteIP, remotePort);
-      char messageReturn[50];
-      sprintf(messageReturn, "Picked up mine %d", liveMine);
-      Udp.write(messageReturn);
-      Udp.endPacket();
-      carryingMine = true;
-      //}
     }
   }
 }
@@ -551,7 +558,6 @@ void flashRed() {
 }
 
 void turnOffGreenAmber() {
-  timer.disable(amberId);
   digitalWrite(AMBER_PIN, LOW);
   digitalWrite(GREEN_PIN, LOW);
 }
