@@ -26,10 +26,10 @@ RED1 = np.array([0, 20])
 RED2 = np.array([340, 360])
 
 
-MAX_THETA_RATE = 0.5
-MAX_TRANS_RATE = 0.7
+MAX_THETA_RATE = 0.4
+MAX_TRANS_RATE = 1
 
-POS_DEADBAND_W = 0.04 # m
+POS_DEADBAND_W = 0.03 # m
 
 class Robot():
 
@@ -38,8 +38,8 @@ class Robot():
         self.h_m = 0.155
         self.dims = np.array([self.h_m, self.w_m])
         self.centre_offset = np.array([0.065, 0.095])
-        self.b_box1_offset = np.array([-0.170, -0.150])
-        self.b_box1_wh = np.array([0.340, 0.400])
+        self.b_box1_offset = np.array([-0.250, -0.250])
+        self.b_box1_wh = np.array([0.500, 0.500])
         # self.b_box2_offset = self.b_box1_offset
         # self.b_box2_wh = np.array([0.06, 0.1])
         # self.b_box2_offset[0] += self.b_box1_wh[0]/2 - self.b_box2_wh[0]/2
@@ -56,10 +56,13 @@ class Robot():
             self.timestamps = []
         
         self.states = [
-            "moving from start pos"
+            "rotating from start pos",
+            "moving from start pos",
             "looking for mines",
             "moving to mine y",
             "moving to mine x",
+            "moving to edge mine y",
+            "moving to edge mine x",
             "picking up mine",
             "moving to bin x",
             "moving to bin y",
@@ -73,58 +76,86 @@ class Robot():
         # self.state = "moving from start pos"
         # self.prev_state = ""
 
-        self.state = "looking for mines"
-        self.prev_state = "moving from start pos"
+        self.state = "rotating from start pos"
+        self.prev_state = ""
         self.target_mine = None
         self.has_mine = False
+        self.final_mine = False
 
         self.wants_mine_data_flag = False
         self.mine_locs = None
 
-        # target rotation and position
-        self.achieved_target = False
-        self.t_rot = None
-        self.t_pos = None
-        self.t_start_pos = None
-        self.ok_to_translate = False
-        self.outside_deadband = False
+        # initialise target rotation and position vals
+        self.remove_target_pos()
 
         self.l_cmd = 0
         self.r_cmd = 0
         
         self.theta_err = None
         self.pos_err = None
+        self.latest_cmd_times = {}
         self.latest_cmd = None
-        self.latest_cmd_time = time.time()
         self.latest_rcv_time = time.time()
 
-    def update_state(self):
+        if USE_VIDEO:
+            udpc.rxthread.start()
+            self.send_cmd("reset")
 
-        if self.state == "moving from start pos":
+    def update_state(self, second_run=False):
+
+        if "from start pos" in self.state:
             
-            if self.achieved_target:
-                self.state = "looking for mines"
-            else:
-                # blindly rotate and then move forward
-                self.achieved_target = True
+            if self.state == "rotating from start pos":
+                if self.state != self.prev_state:
+                    self.set_blind_cmd(0.7 / MAX_THETA_RATE, -MAX_THETA_RATE, MAX_THETA_RATE)
+
+                if self.achieved_target:
+                    self.state = "moving from start pos"
+
+            if self.state == "moving from start pos":
+                if self.state != self.prev_state:
+                    self.set_blind_cmd(1.5 / MAX_TRANS_RATE, MAX_TRANS_RATE, MAX_TRANS_RATE)
+
+                if self.achieved_target:
+                    if self.get_centre_coords() is None:
+                        self.set_blind_cmd(0.5 / MAX_TRANS_RATE, MAX_TRANS_RATE, MAX_TRANS_RATE)
+                    else:
+                        self.state = "looking for mines"
             
-        elif self.state == "looking for mines":
+
+        if self.state == "looking for mines":
             if self.state != self.prev_state:
                 self.wants_mine_data_flag = True
 
+
             if not self.wants_mine_data():
 
-                self.mine_locs = [mine.pos for mine in self.mine_locs]
+                print("mine locs:", self.mine_locs)
                 self.mine_locs.sort(key=lambda loc: loc[0], reverse = True)
                 
-                self.target_mine = self.mine_locs[0]
+                if len(self.mine_locs) == 1:
+                    print("final mine!")
+                    self.final_mine = True
+
+                for mine in self.mine_locs:
+                    print("mine[1]", mine[1])
+                    if mine[1] > MINE_BLIND_BAND and mine[1] < 2.1 - MINE_BLIND_BAND:
+                        self.target_mine = mine
+                        self.state = "moving to mine"
+                        break
+                    
+                    print("mine is close to edge of camera")
+                else:
+                    print("all mines left are close to edge of camera")
+                    self.target_mine = self.mine_locs[0]
+                    self.state = "moving to edge mine"
+
 
                 print("picked mine at", self.target_mine)
 
-                self.state = "moving to mine"
 
         #should have a best mine identified
-        elif "moving to mine" in self.state:
+        if "moving to mine" in self.state:
             
             if self.target_mine is None:
                 self.state = "looking for mines"
@@ -135,27 +166,94 @@ class Robot():
 
                 if self.state == "moving to mine y":
                     if self.state != self.prev_state:
+                        # print("setting target pos")
                         self.set_target_pos(np.array([SAFE_LINE_X_POS, self.target_mine[1]]))
                     if self.achieved_target:
+                        self.state = "moving to mine rotation"
+                        
+                if self.state == "moving to mine rotation":
+                    if self.state != self.prev_state:
+                        self.set_target_rot(np.array([-1, 0]))
+                    if self.achieved_target:
                         self.state = "moving to mine x"
+                        
 
                 if self.state == "moving to mine x":
                     if self.state != self.prev_state:
+                        self.send_cmd("look mines")
                         self.set_target_pos(self.target_mine)
 
-                    # change this to wait for packet from nina
-                    if self.achieved_target:
-                        self.state = "picking up mine"
+                    if USE_VIDEO and udpc.CURR_UDP_DATA is not None:
+                        if udpc.CURR_UDP_DATA["carryingMine"]:
+                            self.send_cmd("stop mines")
+                            is_live = udpc.CURR_UDP_DATA["livemine"] 
 
-        elif self.state == "picking up mine":
+                            if is_live:
+                                self.state = "moving to bin"
+                                self.has_mine = "live"
+                            else:
+                                self.state = "moving to bin"
+                                self.has_mine = "dead"
+
+
+        # can't go directly to these or CV will lose Nina
+        if "moving to edge mine" in self.state:
             
-            if "Picked up mine" in CURR_UDP_DATA:
-                # need mine type from Nina
-                self.state = "moving to live bin" # or dud bin
-                self.has_mine = "live"
+            if self.target_mine is None:
+                self.state = "looking for mines"
+
+            else:
+                if self.state == "moving to edge mine":
+                    self.state = "moving to edge mine centre line"
+
+                if self.state == "moving to edge mine centre line":
+                    if self.state != self.prev_state:
+                        self.set_target_pos(np.array([SAFE_LINE_X_POS, 1.2]))
+                    if self.achieved_target:
+                        self.state = "moving to edge mine x"
+
+                if self.state == "moving to edge mine x":
+                    if self.state != self.prev_state:
+                        self.set_target_pos(np.array([self.target_mine[0], 1.2]))
+                    if self.achieved_target:
+                        self.state = "moving to edge mine rotation"
+
+                if self.state == "moving to edge mine rotation":
+                    if self.state != self.prev_state:
+                        self.set_target_rot(np.array([0, 1.2 - self.target_mine[0]]))
+                    if self.achieved_target:
+                        self.state = "moving to edge mine y"
+
+                if self.state == "moving to edge mine y":
+                    if self.state != self.prev_state:
+                        self.set_target_pos(self.target_mine)
+                        self.send_cmd("look mines")                        
+
+                    if USE_VIDEO and udpc.CURR_UDP_DATA is not None:
+                        if udpc.CURR_UDP_DATA["carryingMine"]:
+                            self.state = "blind reverse after edge mine pickup"
+
+        if self.state == "blind reverse after edge mine pickup":
+
+            if self.state != self.prev_state:
+                self.set_blind_cmd(1/MAX_TRANS_RATE, -MAX_TRANS_RATE, -MAX_TRANS_RATE)
+            
+            if self.achieved_target:
+                if USE_VIDEO and udpc.CURR_UDP_DATA is not None:
+                    self.send_cmd("stop mines")
+                    is_live = udpc.CURR_UDP_DATA["livemine"] 
+
+                    if is_live:
+                        self.state = "moving to bin"
+                        self.has_mine = "live"
+                    else:
+                        self.state = "moving to bin"
+                        self.has_mine = "dead"
+
+                    self.target_mine[1] = (self.target_mine[1] - 1.2) * 0.9 + 1.2
 
         
-        elif "to bin" in self.state:
+        if "moving to bin" in self.state:
             if not self.has_mine:
                 self.state = "looking for mines"
 
@@ -166,7 +264,7 @@ class Robot():
                 if self.state != self.prev_state:
                     self.set_target_pos(np.array([SAFE_LINE_X_POS, self.target_mine[1]]))
                 if self.achieved_target:
-                    self.state = "moving to mine y"
+                    self.state = "moving to bin y"
 
             if self.state == "moving to bin y":
                 if self.has_mine == "live":
@@ -177,30 +275,73 @@ class Robot():
                         self.set_target_pos(np.array([SAFE_LINE_X_POS, DEAD_DEPOSIT_Y_POS]))
                 
                 if self.achieved_target:
-                    self.state = "rotating to bin"
+                    self.state = "moving to bin rotation"
 
 
-            if self.state == "rotating to bin":
-                # self.set_target_rot(np.array([1, 0]))
-                self.send_cmd("stop")
+            if self.state == "moving to bin rotation":
+                
+                if self.state != self.prev_state:
+                    if self.has_mine == "live":
+                        self.set_target_rot(np.array([1, 1]))
+                    elif self.has_mine == "dead":
+                        self.set_target_rot(np.array([1, 0]))
+                    else:
+                        print("something went horribly wrong")
 
                 if self.achieved_target:
+                    self.state = "moving to bin close"
+
+            if self.state == "moving to bin close":
+
+                if self.state != self.prev_state:
+                    self.set_blind_cmd(1.5/MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
+                if self.achieved_target:
                     self.state = "depositing mine"
-                    #send a packet to nina
-
-        elif self.state == "depositing mine":
-            #wait for a packet from nina
-            self.state = "looking for mines"
 
 
-        update_again = False
-        if self.prev_state != self.state:
-            update_again = True
+        if self.state == "depositing mine":
+
+            if self.state != self.prev_state:
+                self.send_cmd("drop mine")
+
+            if USE_VIDEO and udpc.CURR_UDP_DATA is not None:
+                if not udpc.CURR_UDP_DATA["carryingMine"]:
+
+                    if self.final_mine:
+                        self.state = "moving to end pos"
+                    else:
+                        self.state = "looking for mines"
+
+        if "moving to end pos" in self.state:
+            if self.state == "moving to end pos":
+                if self.state != self.prev_state:
+                    self.set_target_pos(np.array([SAFE_LINE_X_POS, 1.0]))
+                if self.achieved_target:
+                    self.state = "moving to end pos 2"
+
+            if self.state == "moving to end pos 2":
+                if self.state != self.prev_state:
+                    self.set_target_pos(np.array([2.1, 1.0]))
+                if self.achieved_target:
+                    self.state = "moving to end pos 3"
+
+            if self.state == "moving to end pos 3":
+                if self.state != self.prev_state:
+                    self.set_target_pos(np.array([2.1, 0.5]))
+                if self.achieved_target:
+                    self.state = "moving to end pos blind"
+            
+            if self.state == "moving to end pos blind":
+                if self.state != self.prev_state:
+                    self.set_blind_cmd(2.5/MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
+                if self.achieved_target:
+                    self.state = "done"
+
+
+        if self.state != self.prev_state and not second_run:
+            self.update_state(second_run=True)
 
         self.prev_state = self.state
-
-        if update_again:
-            self.update_state()
 
 
 
@@ -274,9 +415,16 @@ class Robot():
         cv2_text(img, f"left wheel:  {round(self.l_cmd*255)}", (50, 95), (255, 255, 255))
         cv2_text(img, f"right wheel: {round(self.r_cmd*255)}", (50, 110), (255, 255, 255))
         cv2_text(img, f"ok to translate: {self.ok_to_translate}", (50, 125), (255, 255, 255))
-        cv2_text(img, f"udp data: {CURR_UDP_DATA}", (50, 140), (255, 255, 255))
         cv2_text(img, f"state: {self.state}", (50, 155), (255, 255, 255))
         cv2_text(img, f"centre: {centre[0]:.2f}, {centre[1]:.2f} m", (50, 170), (255, 255, 255))
+
+        if USE_VIDEO and udpc.CURR_UDP_DATA is not None:
+            cv2_text(img, f"Nina's status:", (50, 230), (255, 255, 255))
+
+            for i, (key, val) in enumerate(udpc.CURR_UDP_DATA.items()):
+                cv2_text(img, f"{key}:{val}", (60, 230 + 20 + 15 * i), (255, 255, 255))
+
+
 
 
         # mpl_show(robot_img)
@@ -325,10 +473,7 @@ class Robot():
 
         relative = radius / (1.2 * SQRT2)
 
-        correction = - 0.12 * relative
-
-        # if do_correction:
-        #     return distorted + correction
+        correction = - 0.15 * relative
 
         return distorted + correction
 
@@ -401,8 +546,22 @@ class Robot():
         self.record_pos(origin, axes)
 
 
+    def set_blind_cmd(self, t, l, r):
+        
+        self.remove_target_pos()
+
+        self.moving_blind = True
+        self.blind_start_time = time.time()
+        self.l_cmd = l
+        self.r_cmd = r
+        self.blind_timeout_time = t
+
+
     # in real world coords - also sets target rot
     def set_target_pos(self, t_pos, force = False):
+
+        if force:
+            self.remove_target_pos()
 
         centre = self.get_centre_coords()
 
@@ -436,9 +595,30 @@ class Robot():
         self.t_rot = rot
 
 
+    def remove_target_pos(self):
+
+        self.achieved_target = False
+        self.t_rot = None
+        self.t_pos = None
+        self.t_start_pos = None
+        self.ok_to_translate = False
+        self.outside_deadband = False
+        self.moving_blind = False
+        self.blind_timeout_time = 0
+
 
     def control_to_target(self):
         
+        if self.moving_blind:
+            if time.time() - self.blind_start_time < self.blind_timeout_time:
+                self.set_motors()
+            else:
+                self.send_cmd("stop")
+                self.achieved_target = True
+                self.moving_blind = False
+            return
+
+
         vals = self.get_pos_estimate()
 
         if vals is None:
@@ -504,18 +684,24 @@ class Robot():
                 self.l_cmd += theta_rate
                 self.r_cmd -= theta_rate
 
+            # correct rotation and no target pos -> achieved target
+            elif self.t_pos is None:
+                self.achieved_target = True
+                self.t_rot = None
+
+            # correct rotation and target pos -> ok to translate
+            elif not self.ok_to_translate:
+                print("ok to translate")
+                self.send_cmd("stop")
+                update_motors = False
+                self.ok_to_translate = True
             
             # hysteresis on ok_to_translate
-            if abs(theta_err) < DEG_TO_RAD * 5:
-                if self.t_pos is None:
-                    self.achieved_target = True
-                    self.t_rot = None
-                else:
-                    if not self.ok_to_translate:
-                        print("ok to translate!")
-                        self.send_cmd("stop")
-                        update_motors = False
-                        self.ok_to_translate = True
+            if abs(theta_err) > DEG_TO_RAD * 10 and self.ok_to_translate:
+                print("not ok to translate")
+                self.send_cmd("stop")
+                update_motors = False
+                self.ok_to_translate = False
 
 
             if self.t_pos is not None:
@@ -563,6 +749,13 @@ class Robot():
             self.send_cmd("stop")
             return
 
+        # avoid sending > 255 but maintain ratio
+        max_cmd = max(self.l_cmd, self.r_cmd)
+        if max_cmd > 1:
+            self.l_cmd /= max_cmd
+            self.r_cmd /= max_cmd
+
+
         l_int = int(round(self.l_cmd * 255))
         r_int = int(round(self.r_cmd * 255))
 
@@ -570,26 +763,41 @@ class Robot():
         
         
 
-    # max rate of 5 Hz
-    def send_cmd(self, cmd_txt):
+    # max rate of 2.5 Hz for any particular command
+    def send_cmd(self, cmd_txt, verbose=False):
 
         t_now = time.time() 
 
-        if cmd_txt != self.latest_cmd and (cmd_txt == "stop" or t_now - self.latest_cmd_time > 0.2):
-            if USE_VIDEO:
+        command = cmd_txt.split(":")[0]
+
+        if command in self.latest_cmd_times:
+            latest_time = self.latest_cmd_times[command]
+            if (t_now - latest_time) < 0.4:
+                if verbose:
+                    print("didn't send command:", cmd_txt)
+                return
+
+    
+        if USE_VIDEO:
+            if verbose:
                 print("sending:", cmd_txt)
-                udpc.sendCommand(cmd_txt.encode())
-            self.latest_cmd = cmd_txt
-            self.latest_cmd_time = t_now
+            udpc.sendCommand(cmd_txt.encode())
+
+        # if cmd_txt == "stop":
+            # time.sleep(0.2)
+        
+        self.latest_cmd_times[command] = time.time()
+        self.latest_cmd = cmd_txt
+
+
 
 
     def recv_update(self):
 
         t_now = time.time() 
-        cmd_txt = "get update"
-        if t_now - self.latest_rcv_time > 0.2:
+        cmd_txt = "get status"
+        if t_now - self.latest_rcv_time > 0.5:
             if USE_VIDEO:
-                print("sending:", cmd_txt)
                 udpc.sendCommand(cmd_txt.encode())
 
             self.latest_rcv_time = t_now
@@ -602,7 +810,9 @@ class Robot():
     def set_mine_locs(self, mine_centres):
 
         if len(mine_centres) > 0:
-            self.mine_locs = mine_centres
+            print("mine_centres")
+
+            self.mine_locs = [mine.pos for mine in mine_centres]
             self.wants_mine_data_flag = False
 
         else:
@@ -698,7 +908,7 @@ def detect_robot(img):
     red_cs.extend(get_colour_contours(RED2))
 
     if len(red_cs) < 2:
-        print("not enough contours")
+        # print("not enough contours")
         return None
 
     red_cs = sorted(red_cs, key=lambda c: cv2.contourArea(c), reverse=True)[:2]
@@ -710,6 +920,7 @@ def detect_robot(img):
 
     cv2.drawContours(img, red_cs, -1, (255, 255, 255), -1)
 
+    # mpl_show(img)
 
     v1 = np.array(red_lines[0][:2])
     v2 = np.array(red_lines[1][:2])
@@ -724,7 +935,7 @@ def detect_robot(img):
     theta = (180/np.pi) * np.arccos(abs(np.dot(line_vs[0], line_vs[1])))
     
     if (abs(90-theta) > 30):
-        print("more than 30 degrees from orthogonal:", theta)
+        # print("more than 30 degrees from orthogonal:", theta)
         return None
 
     coeffs = find_intersect_coeffs(line_vs, line_pts)
@@ -761,7 +972,7 @@ def detect_robot(img):
     # make sure intersection coords agree (sanity check)
     diff = intersect_coords_1 - intersect_coords_2
     if any(abs(i) > 0.1 for i in diff):
-        print("intersect coords disagree: ", intersect_coords_1, intersect_coords_2)
+        # print("intersect coords disagree: ", intersect_coords_1, intersect_coords_2)
         return None
 
     intersect_coords = (0.5 * (intersect_coords_1 + intersect_coords_2)).astype(int)
@@ -770,7 +981,8 @@ def detect_robot(img):
     for pt in line_pts:
         dist = pythag(pt - intersect_coords)
         if dist > max(Nina.dims/IDX_TO_COORD_SF):
-            print("too far to intersect")
+            # print("too far to intersect")
+            return None
 
     
     # coordinate system now fully established

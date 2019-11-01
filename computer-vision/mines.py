@@ -7,6 +7,8 @@ def find_mines(img, mask, img_x, img_y):
 
     h, w = np.shape(img)
 
+    # mpl_show(img)
+
     ksize = 15 # for sobel and dilation
     
     bright = gamma_brighten(img, 0.4)
@@ -19,7 +21,6 @@ def find_mines(img, mask, img_x, img_y):
     mean = normalised.mean()
     ret, trunced = cv2.threshold(normalised, mean, mean, cv2.THRESH_TRUNC)
 
-    # mpl_show(normalised)
     # mpl_show(trunced)
 
     mean = trunced.mean()
@@ -43,7 +44,7 @@ def find_mines(img, mask, img_x, img_y):
 
     # mpl_show(sobel)
 
-    ret, threshed = cv2.threshold(sobel, 30, 255, cv2.THRESH_BINARY)
+    ret, threshed = cv2.threshold(sobel, 25, 255, cv2.THRESH_BINARY)
     
     closed = cv2.morphologyEx(threshed, cv2.MORPH_CLOSE, np.ones((15, 15),np.uint8))
    
@@ -65,7 +66,7 @@ def find_mines(img, mask, img_x, img_y):
             area = cv2.contourArea(c)
             radius = area**0.5
 
-            if 40 < area < 500:
+            if 20 < area < 300:
                 print("mine:", centre.pos, area)
                 mine_deets.append((centre, radius))
 

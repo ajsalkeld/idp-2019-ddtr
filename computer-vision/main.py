@@ -2,7 +2,10 @@ from global_stuff import *
 
 import mines
 from robot import Nina
-import udpComms
+
+if USE_VIDEO:
+    import udpComms as udpc
+
 from arena import *
 pt = Point
 
@@ -94,7 +97,7 @@ def set_params(cap, params, verbose=False):
         if (not ret) and verbose:
             print("failed")
 
-    time.sleep(0.5)
+    time.sleep(1)
 
 
 def get_frame(cap):
@@ -104,10 +107,7 @@ def get_frame(cap):
 
 if __name__ == "__main__":
 
-
     if USE_VIDEO:
-
-        # udpComms.setup()
 
         print("setting up camera... (takes a while!)")
         start_setup = time.time()
@@ -138,17 +138,21 @@ if __name__ == "__main__":
 
                 mine_data = do_mine_stuff(m_frame, Nina.get_bbox_ctr())
 
+                # print(mine_data)
+                # continue
+
                 Nina.set_mine_locs([centre for centre, rad in mine_data])
 
                 set_params(cap, robot_vid_params)
-
+                
 
             r_frame = get_frame(cap)
-            # cv2.imwrite("robot_mode.jpg", r_frame)
-           
+            cv2.imwrite("robot_mode.jpg", r_frame)
+        
             r_frame = cv2.resize(r_frame, tuple(RESOLUTION))
 
             Nina.update_pos(r_frame)
+            Nina.recv_update()
 
             # if i < 10:
             #     Nina.set_target_pos(np.array([1.0, 1.5]))
@@ -158,18 +162,13 @@ if __name__ == "__main__":
             #     # Nina.set_target_pos(np.random.rand(2)*1.4 + 0.5)
             #     print("set new target")
 
-            # Nina.update_state()
+            Nina.update_state()
 
             Nina.illustrate(r_frame)
             
-            # Nina.control_to_target()
+            Nina.control_to_target()
 
             to_show = illustrate(r_frame, mine_data)
-
-            grid = cv2.imread("pics/calib/arena3gridpoints.jpg")
-            grid = cv2.resize(grid, tuple(RESOLUTION))
-
-            to_show = cv2.add(grid, to_show)
 
             show_img(to_show)
 
@@ -178,17 +177,32 @@ if __name__ == "__main__":
             # i += 1
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
+                Nina.send_cmd("stop", True)
                 break
+            # if key & 0xFF == ord('s'):
+            #     i += 1
+            #     cv2.imwrite("save{i}.jpg", to_show)
+            
+            if key & 0xFF == ord('r'):
+                Nina.send_cmd("reset", True)
+            if key & 0xFF == ord('d'):
+                Nina.send_cmd("drop mine", True)
+            if key & 0xFF == ord('l'):
+                Nina.send_cmd("look mines", True)
+            if key & 0xFF == ord('k'):
+                Nina.send_cmd("stop mines", True)
             if key & 0xFF == ord('s'):
-                i += 1
-                cv2.imwrite("save{i}.jpg", to_show)
+                Nina.send_cmd("stop", True)
                 
 
 
         set_params(cap, default_vid_params)
-        # When everything done, release the capture
+
+        print("releasing camera 'capture' object")
         cap.release()
         cv2.destroyAllWindows()
+
+        udpc.STOP_THREAD = True
 
 
     else:
