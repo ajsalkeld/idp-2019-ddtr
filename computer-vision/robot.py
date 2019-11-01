@@ -220,7 +220,7 @@ class Robot():
 
                 if self.state == "moving to edge mine rotation":
                     if self.state != self.prev_state:
-                        self.set_target_rot(np.array([0, 1.2 - self.target_mine[0]]))
+                        self.set_target_rot(np.array([0, self.target_mine[1] - 1.2]))
                     if self.achieved_target:
                         self.state = "moving to edge mine y"
 
@@ -236,7 +236,7 @@ class Robot():
         if self.state == "blind reverse after edge mine pickup":
 
             if self.state != self.prev_state:
-                self.set_blind_cmd(1/MAX_TRANS_RATE, -MAX_TRANS_RATE, -MAX_TRANS_RATE)
+                self.set_blind_cmd(3/MAX_TRANS_RATE, -MAX_TRANS_RATE/2, -MAX_TRANS_RATE/2)
             
             if self.achieved_target:
                 if USE_VIDEO and udpc.CURR_UDP_DATA is not None:
@@ -294,7 +294,10 @@ class Robot():
             if self.state == "moving to bin close":
 
                 if self.state != self.prev_state:
-                    self.set_blind_cmd(1.5/MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
+                    if self.has_mine == "live":
+                        self.set_blind_cmd(2.5/MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
+                    elif self.has_mine == "dead":
+                        self.set_blind_cmd(1.5/MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
                 if self.achieved_target:
                     self.state = "depositing mine"
 
@@ -675,14 +678,14 @@ class Robot():
 
             if abs(theta_err) > DEG_TO_RAD * 3:
                 
-                if abs(theta_err) > DEG_TO_RAD * 20:
+                if abs(theta_err) > DEG_TO_RAD * 30:
                     theta_rate = - MAX_THETA_RATE * sign(theta_err)
-                
                 else:
-                    theta_rate = - MAX_THETA_RATE * theta_err / (DEG_TO_RAD * 20)
+                    theta_rate = - MAX_THETA_RATE * theta_err / (DEG_TO_RAD * 30)
 
-                self.l_cmd += theta_rate
-                self.r_cmd -= theta_rate
+                if not self.ok_to_translate:
+                    self.l_cmd += theta_rate
+                    self.r_cmd -= theta_rate
 
             # correct rotation and no target pos -> achieved target
             elif self.t_pos is None:
@@ -696,13 +699,13 @@ class Robot():
                 update_motors = False
                 self.ok_to_translate = True
             
-            # hysteresis on ok_to_translate
+             # hysteresis on ok_to_translate
             if abs(theta_err) > DEG_TO_RAD * 10 and self.ok_to_translate:
                 print("not ok to translate")
                 self.send_cmd("stop")
                 update_motors = False
                 self.ok_to_translate = False
-
+                
 
             if self.t_pos is not None:
 
@@ -729,7 +732,7 @@ class Robot():
                 if self.ok_to_translate:                
 
                     # heading the right direction and ready to move forward.
-                    if self.pos_err > 0.5: #m
+                    if self.pos_err > 0.35: #m
 
                         self.l_cmd += MAX_TRANS_RATE
                         self.r_cmd += MAX_TRANS_RATE
@@ -818,6 +821,10 @@ class Robot():
         else:
             print("no mines detected")
 
+    def reset(self):
+        self.remove_target_pos()
+        self.state = "rotating from start pos"
+        self.prev_state = ""
 
 Nina = Robot()
 

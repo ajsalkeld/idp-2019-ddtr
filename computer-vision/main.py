@@ -193,7 +193,10 @@ if __name__ == "__main__":
                 Nina.send_cmd("stop mines", True)
             if key & 0xFF == ord('s'):
                 Nina.send_cmd("stop", True)
-                
+            if key & 0xFF == ord('o'):
+                Nina.send_cmd("stop", True)
+                time.sleep(2)
+                Nina.reset()
 
 
         set_params(cap, default_vid_params)
