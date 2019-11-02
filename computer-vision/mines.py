@@ -3,9 +3,12 @@ from global_stuff import *
 from arena import *
 
 
-def find_mines(img, mask, img_x, img_y):
+def find_mines(img, mask, detection_thresh, img_x, img_y):
 
     h, w = np.shape(img)
+
+    img = img.copy()
+    mask = mask.copy()
 
     # mpl_show(img)
 
@@ -42,13 +45,12 @@ def find_mines(img, mask, img_x, img_y):
     sobel = exposure.rescale_intensity(sobel, in_range=(0, max_val))
     sobel = img_as_ubyte(sobel)
 
-    # mpl_show(sobel)
+    ret, threshed = cv2.threshold(sobel, detection_thresh, 255, cv2.THRESH_BINARY)
 
-    ret, threshed = cv2.threshold(sobel, 25, 255, cv2.THRESH_BINARY)
-    
-    closed = cv2.morphologyEx(threshed, cv2.MORPH_CLOSE, np.ones((15, 15),np.uint8))
+    close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (30, 30))
+    closed = cv2.morphologyEx(threshed, cv2.MORPH_CLOSE, close_kernel)
    
-    # mpl_show(closed)
+    mpl_show(closed)
 
     # closed = cv2.medianBlur(closed, 5)
 
@@ -66,18 +68,13 @@ def find_mines(img, mask, img_x, img_y):
             area = cv2.contourArea(c)
             radius = area**0.5
 
-            if 20 < area < 300:
-                print("mine:", centre.pos, area)
+            if 20 < area < 400:
+                # print("mine:", centre.pos, area)
                 mine_deets.append((centre, radius))
-
 
             # (x, y), radius = cv2.minEnclosingCircle(c)
             # centre = Point(idx=(img_x + x, img_y + y))
             # radius = round(radius)
 
-    # because it will think noise is mines without the contrast.
-    if len(mine_deets) > 10:
-        print("no mines.") 
-        mine_deets = []
 
-    return mine_deets, closed
+    return mine_deets

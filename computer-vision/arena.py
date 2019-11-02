@@ -189,7 +189,6 @@ MINE_AREA_DILATION = Point(pos=(0.04, 0.04))
 MINE_AREA_TOP_LEFT -= MINE_AREA_DILATION
 MINE_AREA_BOT_RIGHT += MINE_AREA_DILATION
 
-MINE_BLIND_BAND = 0.4 # m
 
 LIVE_DEPOSIT_TOP_LEFT = Point(pos=(2.4-0.29, 2.4-0.3))
 LIVE_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-TAPE_THICKNESS/2))
@@ -200,6 +199,8 @@ DEAD_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-0.6-TAPE_THICKNESS
 SAFE_LINE_X_POS = 2.4 - 0.5
 LIVE_DEPOSIT_Y_POS = 2.4 - 0.45
 DEAD_DEPOSIT_Y_POS = 2.4 - 0.75
+MINE_BLIND_Y_THRESH = 2.4 - 0.45
+SEARCH_START_Y_POS = 2.4 - 0.6
 
 
 LHS_BOUND_LINE_TOP = Point(pos=(2.4-0.5, 0))
@@ -221,11 +222,11 @@ def draw_arena_features(img):
                         (MINE_AREA_BOT_RIGHT - MINE_AREA_DILATION).cv_tup, (255, 100, 100), 1)
 
     # mine area - cutoff lines for close to blind regions
-    cv2.line(img, Point(pos=(MINE_AREA_BOT_RIGHT.pos[0], 2.4-MINE_BLIND_BAND)).cv_tup,
-                    Point(pos=(MINE_AREA_TOP_LEFT.pos[0],  2.4-MINE_BLIND_BAND)).cv_tup, (255, 50, 50), 1)
+    cv2.line(img, Point(pos=(MINE_AREA_BOT_RIGHT.pos[0], MINE_BLIND_Y_THRESH)).cv_tup,
+                    Point(pos=(MINE_AREA_TOP_LEFT.pos[0], MINE_BLIND_Y_THRESH)).cv_tup, (255, 50, 50), 1)
   
-    cv2.line(img, Point(pos=(MINE_AREA_BOT_RIGHT.pos[0], MINE_BLIND_BAND)).cv_tup,
-                    Point(pos=(MINE_AREA_TOP_LEFT.pos[0], MINE_BLIND_BAND)).cv_tup, (255, 50, 50), 1)
+    # cv2.line(img, Point(pos=(MINE_AREA_BOT_RIGHT.pos[0], MINE_BLIND_BAND)).cv_tup,
+                    # Point(pos=(MINE_AREA_TOP_LEFT.pos[0], MINE_BLIND_BAND)).cv_tup, (255, 50, 50), 1)
 
 
     # live mine deposit

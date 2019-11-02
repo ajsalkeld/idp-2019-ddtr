@@ -10,8 +10,7 @@ from arena import *
 pt = Point
 
 
-
-def do_mine_stuff(frame, nina_mask_ctr):
+def do_mine_stuff(frame, nina_mask_ctr, n_mines_known):
 
     frame_grey = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
 
@@ -25,15 +24,46 @@ def do_mine_stuff(frame, nina_mask_ctr):
         cv2.drawContours(arena_mask_cpy, [nina_mask_ctr], 0, (0, 0, 0), -1)
 
     mine_area_mask = arena_mask_cpy[y1:y2, x1:x2]
-
-
-    # mpl_show(mine_area_mask)
-
-    # add robot to mask when it's detected
-    # mask required to eliminate extreme gradients
     
-    mine_details, img2 = mines.find_mines(mine_area_img, mine_area_mask, x1, y1)
+    BASE_DETECTION_THRESH = 50
+
+    detection_thresh = BASE_DETECTION_THRESH
+    mine_details = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
+
+    # start at high threshold (detect fewer mines) and increase until enough mines found
+    if n_mines_known is not None:
+        while len(mine_details) < n_mines_known:
+            if detection_thresh <= 10:
+                print("too many attempts. Giving up")
+                return []
+
+            detection_thresh -= 5
+            print(f"not enough mines ({len(mine_details)} / {n_mines_known}) - reducing threshold to {detection_thresh}")
+            mine_details = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
+        
+        # probably garbage due to no mines being in the field
+        # - no contrast so thinks lots of mines in arena
+        if len(mine_details) > n_mines_known + 4:
+            print(f"too many mines ({len(mine_details)} / {n_mines_known}) - returning none")
+            return []
+
+        # when done, reduce threshold 1 more time in case Nina failed to pick up
+        detection_thresh -= 5
+        print(f"all mines detected, but reducing threshold once to {detection_thresh} in case Nina missed one")
+        mine_details_2 = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
+
+        if len(mine_details_2) > len(mine_details) + 2 or len(mine_details_2) < len(mine_details):
+            print("never mind, using previous threshold")
+        else:
+            mine_details = mine_details_2
+
+        print(f"mines detected: {len(mine_details)} / {n_mines_known}")
+
+    else:
+        print(f"mines detected: {len(mine_details)}")
+
     return mine_details
+
 
 def show_img(frame):
     
@@ -121,8 +151,9 @@ if __name__ == "__main__":
 
         print(f"done. setup took {end_setup - start_setup} seconds (jheez)")
 
-        mine_data = []
+        start_input = input("press enter to begin!")
 
+        mine_data = []
         i = 0
 
         while True:
@@ -136,7 +167,7 @@ if __name__ == "__main__":
                 m_frame = get_frame(cap)
                 cv2.imwrite("mine_mode.jpg", m_frame)
 
-                mine_data = do_mine_stuff(m_frame, Nina.get_bbox_ctr())
+                mine_data = do_mine_stuff(m_frame, Nina.get_bbox_ctr(), Nina.n_mines_known)
 
                 # print(mine_data)
                 # continue
@@ -172,7 +203,7 @@ if __name__ == "__main__":
 
             show_img(to_show)
 
-                # time.sleep(2)
+            # time.sleep(2)
 
             # i += 1
             key = cv2.waitKey(1) & 0xFF
@@ -182,7 +213,6 @@ if __name__ == "__main__":
             # if key & 0xFF == ord('s'):
             #     i += 1
             #     cv2.imwrite("save{i}.jpg", to_show)
-            
             if key & 0xFF == ord('r'):
                 Nina.send_cmd("reset", True)
             if key & 0xFF == ord('d'):
@@ -216,14 +246,17 @@ if __name__ == "__main__":
 
         if DO_ROBOT:
             Nina.update_pos(img)
-            Nina.illustrate(img)
 
-            # Nina.set_target_pos(np.array([2.0, 2.0]))
-            # Nina.control_to_target()
 
         mine_data = []
         if DO_MINES:
-            mine_data = do_mine_stuff(img, Nina.get_bbox_ctr())
+            mine_data = do_mine_stuff(img, Nina.get_bbox_ctr(), 8)
+
+        if DO_ROBOT:
+            # don't want to illustrate before giving to mine algorithm
+            Nina.illustrate(img)
+            # Nina.set_target_pos(np.array([2.0, 2.0]))
+            # Nina.control_to_target()
 
         illustrate(img, mine_data)
         mpl_show(img)
