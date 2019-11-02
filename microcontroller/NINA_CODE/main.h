@@ -51,6 +51,9 @@ int pos = 130;
 bool liveMine;
 bool lookForMines = false;
 
+int amberId;
+int redId;
+
 void runUntilStop(int direction, int timeToRun = 0);
 void runMotors(int timeToRun = 0, int leftMotorSpeed = MAX_SPEED, int rightMotorSpeed = MAX_SPEED);
 
