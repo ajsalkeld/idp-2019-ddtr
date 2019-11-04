@@ -53,6 +53,7 @@ bool lookForMines = false;
 
 int amberId;
 int redId;
+int timeToGreenOff;
 
 void runUntilStop(int direction, int timeToRun = 0);
 void runMotors(int timeToRun = 0, int leftMotorSpeed = MAX_SPEED, int rightMotorSpeed = MAX_SPEED);

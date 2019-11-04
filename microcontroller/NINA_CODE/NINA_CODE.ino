@@ -182,9 +182,12 @@ void loop()
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(DROP);
       delay(30);
-      runMotors(1500,-MAX_SPEED+50, -MAX_SPEED+50);
+      if (liveMine)
+        runMotors(2250,-MAX_SPEED+50, -MAX_SPEED+50);
+      else 
+        runMotors(1500,-MAX_SPEED+50, -MAX_SPEED+50);
       digitalWrite(RED_PIN, LOW);
-      delay(1000);
+      delay(1500);
       timer.disable(redId);
       carryingMine = false;
       liftFork();
@@ -451,17 +454,21 @@ void ultrasonicChecker()
           stopMotors();
         }
 
+        timer.disable(amberId);
+        digitalWrite(AMBER_PIN, HIGH);
+
         // check hall sensor:
         switch (digitalRead(HALL_PIN)) {
           case HIGH:
             // Not a live mine
             liveMine = false;
             digitalWrite(GREEN_PIN, HIGH);
-            timer.setTimer(5000, turnOffGreenAmber, 1);
+            timeToGreenOff = millis();
             break;
           case LOW:
             // Live mine
             liveMine = true;
+            timeToGreenOff = millis();
             break;
         }
         delay(250);
@@ -477,6 +484,9 @@ void ultrasonicChecker()
           getUSDistance();
           if (distance > 30) distance = 20;
         }
+        if (millis() - timeToGreenOff > 4500) {
+          turnOffGreenAmber();
+        }
         float timeForMine = (distance) / 7.9 * 1000 + 1000;
         runMotors(0, 100, 100);
         Serial.println((int)timeForMine);
@@ -486,6 +496,10 @@ void ultrasonicChecker()
         delay(250);
         // Check US again - reattempt if not picked up
         getUSDistance();
+
+        if (millis() - timeToGreenOff > 4500) {
+          turnOffGreenAmber();
+        }
 
         /*if (distance < 20) {
           Udp.beginPacket(remoteIP, remotePort);
@@ -504,6 +518,9 @@ void ultrasonicChecker()
         Udp.write(messageReturn);
         Udp.endPacket();
         carryingMine = true;
+        if (millis() - timeToGreenOff > 4500) {
+          turnOffGreenAmber();
+        }
         //}
       }
     }
