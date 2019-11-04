@@ -26,7 +26,7 @@ RED1 = np.array([0, 20])
 RED2 = np.array([340, 360])
 
 
-MAX_THETA_RATE = 0.4
+MAX_THETA_RATE = 0.5
 MAX_TRANS_RATE = 1
 
 POS_DEADBAND_W = 0.03 # m
@@ -45,6 +45,8 @@ class Robot():
         # self.b_box2_offset[0] += self.b_box1_wh[0]/2 - self.b_box2_wh[0]/2
         # self.b_box2_offset[1] += self.b_box1_wh[1] - 0.01        
 
+        self.competition_start_t = time.time()
+
         if not USE_VIDEO:
             self.origin_history = []
             self.axes_history = []
@@ -55,7 +57,6 @@ class Robot():
             self.axes_history = []
             self.timestamps = []
 
-        self.competition_start_t = time.time()
         
         # non-rigorous list of states
         self.states = [
@@ -83,7 +84,7 @@ class Robot():
         self.prev_state = ""
         self.target_mine = None
         self.has_mine = False
-        self.n_mines_known = None # set to 8 + 1 = 9 for competition
+        self.n_mines_known = START_MINES
         self.deposit_counts = { "live" : 0, "dead" : 0 }
         self.search_start_pos = np.array([SAFE_LINE_X_POS, SEARCH_START_Y_POS])
 
@@ -123,11 +124,11 @@ class Robot():
 
             if self.state == "moving from start pos":
                 if self.state != self.prev_state:
-                    self.set_blind_cmd(1.5 / MAX_TRANS_RATE, MAX_TRANS_RATE, MAX_TRANS_RATE)
+                    self.set_blind_cmd(3 / MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
 
                 if self.achieved_target:
                     if self.get_centre_coords() is None:
-                        self.set_blind_cmd(0.5 / MAX_TRANS_RATE, MAX_TRANS_RATE, MAX_TRANS_RATE)
+                        self.set_blind_cmd(0.5 / MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
                     else:
                         self.state = "looking for mines"
             
@@ -144,7 +145,7 @@ class Robot():
                 # sort by nearest to deposit area, as long
                 # as out of mine blind band plus 20cm (to avoid collisions)
 
-                self.mine_locs.sort(key=lambda loc: pythag(loc - self.search_start_pos), reverse = True)
+                self.mine_locs.sort(key=lambda loc: pythag(loc - self.search_start_pos))
                 
                 print("deciding on target mine...")
                 for mine in self.mine_locs:
@@ -162,7 +163,6 @@ class Robot():
                 print("picked mine at", self.target_mine)
 
 
-        #TODO: sort out same for edge mines.
         if "moving to mine" in self.state:
             
             if self.target_mine is None:
@@ -234,7 +234,7 @@ class Robot():
                         self.state = "moving to bin"
                         self.has_mine = "live"
                     else:
-                        self.state = "moving to bin"
+                        self.state = "moving to bin dead"
                         self.has_mine = "dead"
 
         
@@ -245,6 +245,7 @@ class Robot():
             if self.state == "moving to bin":
 
                 if self.state != self.prev_state:
+                    self.prev_state = "moving to bin"
                     self.set_target_pos(self.search_start_pos, rough=True)
                 if self.achieved_target:
                     if self.has_mine == "live":
@@ -255,22 +256,30 @@ class Robot():
             if self.state == "moving to bin live":
 
                 if self.state != self.prev_state:
+                    self.prev_state = "moving to bin live"
                     y_pos = LIVE_DEPOSIT_Y_POS + 0.05 * (1 - 0.666*self.deposit_counts["live"])
                     self.set_target_pos(np.array([SAFE_LINE_X_POS, y_pos]))
+
                 if self.achieved_target:
                     self.state = "moving to bin rotation"
 
             elif self.state == "moving to bin dead":
 
                 if self.state != self.prev_state:
-                    y_pos = DEAD_DEPOSIT_Y_POS + 0.05 * (1 - 0.666*self.deposit_counts["dead"])
+                    self.prev_state = "moving to bin dead"
+                    y_pos = DEAD_DEPOSIT_Y_POS# + 0.02 * (1 - 0.666*self.deposit_counts["dead"])
                     self.set_target_pos(np.array([SAFE_LINE_X_POS, y_pos]))
+
+                if self.has_mine == "live":
+                    self.state = "moving to bin live"
+
                 if self.achieved_target:
                     self.state = "moving to bin rotation"
 
             if self.state == "moving to bin rotation":
                 
                 if self.state != self.prev_state:
+                    self.prev_state = "moving to bin rotation"
                     if self.has_mine == "live":
                         self.set_target_rot(np.array([1, 1]))
                     else:
@@ -282,8 +291,9 @@ class Robot():
             if self.state == "moving to bin close":
 
                 if self.state != self.prev_state:
+                    self.prev_state = "moving to bin close"
                     if self.has_mine == "live":
-                        self.set_blind_cmd(3.0/MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
+                        self.set_blind_cmd(2.5/MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
                     elif self.has_mine == "dead":
                         self.set_blind_cmd(1.5/MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
                 if self.achieved_target:
@@ -293,40 +303,52 @@ class Robot():
         if self.state == "depositing mine":
 
             if self.state != self.prev_state:
+                self.prev_state = "depositing mine"
                 self.send_cmd("drop mine")
+                self.n_mines_known -= 1
+                self.deposit_counts[self.has_mine] += 1
+            
 
             if USE_VIDEO and udpc.CURR_UDP_DATA is not None:
                 if not udpc.CURR_UDP_DATA["carryingMine"]:
 
-                    if self.n_mines_known == 1:
-                        self.n_mines_known = 0
-                        self.state = "moving to end pos"
-                    else:
-                        self.state = "looking for mines"
+                    if self.achieved_target:
 
-                    self.deposit_counts[self.has_mine] += 1
+                        if self.n_mines_known == 0:
+                            self.state = "moving to end pos"
+                        else:
+                            self.state = "looking for mines"
+
+
+                        print(f"incrementing {self.has_mine} count")
+
+                
 
         if "moving to end pos" in self.state:
             if self.state == "moving to end pos":
                 if self.state != self.prev_state:
+                    self.prev_state = "moving to end pos"
                     self.set_target_pos(np.array([SAFE_LINE_X_POS, 1.0]), rough=True)
                 if self.achieved_target:
                     self.state = "moving to end pos 2"
 
             if self.state == "moving to end pos 2":
                 if self.state != self.prev_state:
+                    self.prev_state = "moving to end pos 2"
                     self.set_target_pos(np.array([2.1, 1.0]), rough=True)
                 if self.achieved_target:
                     self.state = "moving to end pos 3"
 
             if self.state == "moving to end pos 3":
                 if self.state != self.prev_state:
+                    self.prev_state = "moving to end pos 3"
                     self.set_target_pos(np.array([2.1, 0.5]))
                 if self.achieved_target:
                     self.state = "moving to end pos blind"
             
             if self.state == "moving to end pos blind":
                 if self.state != self.prev_state:
+                    self.prev_state = "moving to end pos blind"
                     self.set_blind_cmd(2.5/MAX_TRANS_RATE, MAX_TRANS_RATE/2, MAX_TRANS_RATE/2)
                 if self.achieved_target:
                     self.state = "done"
@@ -406,7 +428,7 @@ class Robot():
             cv2_text(img, f"target pos dist: {self.pos_err:.2f} m", (50, 80), (255, 255, 255))
 
         cv2_text(img, f"number of mines known: {self.n_mines_known}", (50, 95), (255, 255, 255))
-        cv2_text(img, f"deposited: {self.deposit_counts['live']}/4 (live), {self.deposit_counts['live']}/4 (dead)", (50, 110), (255, 255, 255))
+        cv2_text(img, f"deposited: {self.deposit_counts['live']}/4 (live), {self.deposit_counts['dead']}/4 (dead)", (50, 110), (255, 255, 255))
         cv2_text(img, f"ok to translate: {self.ok_to_translate}", (50, 125), (255, 255, 255))
         cv2_text(img, f"state: {self.state}", (50, 155), (255, 255, 255))
         cv2_text(img, f"centre: {centre[0]:.2f}, {centre[1]:.2f} m", (50, 170), (255, 255, 255))
@@ -647,7 +669,7 @@ class Robot():
 
             d_vec = self.t_pos - real_pos
 
-            further_d_vec = d_vec + 0.1*t_line_vec # 10 cm past
+            further_d_vec = d_vec + 0.05*t_line_vec # 5 cm past
             curr_t_rot = d_vec / pythag(d_vec)
             
             if self.pos_err < 0.02 or (self.rough_target and self.pos_err < 0.05):
@@ -679,9 +701,13 @@ class Robot():
                 else:
                     theta_rate = - MAX_THETA_RATE * theta_err / (DEG_TO_RAD * 30)
 
-                if not self.ok_to_translate:
-                    self.l_cmd += theta_rate
-                    self.r_cmd -= theta_rate
+                # if self.ok_to_translate:
+                #     # self.l_cmd += theta_rate/2
+                #     # self.r_cmd -= theta_rate/2
+                #     pass
+                # else:
+                self.l_cmd += theta_rate
+                self.r_cmd -= theta_rate
 
             # correct rotation and no target pos -> achieved target
             elif self.t_pos is None:
@@ -728,10 +754,14 @@ class Robot():
                 if self.ok_to_translate:                
 
                     # heading the right direction and ready to move forward.
-                    if self.pos_err > 0.35 or self.rough_target: # m
+                    if self.pos_err > 0.35: # m
 
                         self.l_cmd += MAX_TRANS_RATE
                         self.r_cmd += MAX_TRANS_RATE
+                    
+                    elif self.rough_target:
+                        self.l_cmd += MAX_TRANS_RATE * 0.5
+                        self.r_cmd += MAX_TRANS_RATE * 0.5
                     
                     else:
 
@@ -815,8 +845,8 @@ class Robot():
         if self.n_mines_known is None:
             self.n_mines_known = len(mine_centres)
         else:
-            if len(mine_centres) != self.n_mines_known - 1:
-                print(f"{len(mine_centres)} mines left - expected {self.n_mines_known - 1}.")
+            if len(mine_centres) != self.n_mines_known and len(mine_centres) != START_MINES:
+                print(f"{len(mine_centres)} mines left - expected {self.n_mines_known}.")
 
         self.mine_locs = [mine.pos for mine in mine_centres]
         self.wants_mine_data_flag = False

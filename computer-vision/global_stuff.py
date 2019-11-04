@@ -11,6 +11,7 @@ import math
 USE_VIDEO =  True
 DO_MINES = True
 DO_ROBOT = True
+START_MINES = 8
 F_NAME = "mine_mode1.jpg"
 
 DEG_TO_RAD = math.pi/180.0

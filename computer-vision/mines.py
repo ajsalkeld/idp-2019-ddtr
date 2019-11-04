@@ -50,7 +50,7 @@ def find_mines(img, mask, detection_thresh, img_x, img_y):
     close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (30, 30))
     closed = cv2.morphologyEx(threshed, cv2.MORPH_CLOSE, close_kernel)
    
-    mpl_show(closed)
+    # mpl_show(closed)
 
     # closed = cv2.medianBlur(closed, 5)
 

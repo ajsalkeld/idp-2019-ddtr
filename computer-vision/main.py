@@ -25,7 +25,7 @@ def do_mine_stuff(frame, nina_mask_ctr, n_mines_known):
 
     mine_area_mask = arena_mask_cpy[y1:y2, x1:x2]
     
-    BASE_DETECTION_THRESH = 50
+    BASE_DETECTION_THRESH = 30
 
     detection_thresh = BASE_DETECTION_THRESH
     mine_details = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
@@ -153,6 +153,8 @@ if __name__ == "__main__":
 
         start_input = input("press enter to begin!")
 
+        Nina.competition_start_t = time.time()
+
         mine_data = []
         i = 0
 
@@ -250,7 +252,7 @@ if __name__ == "__main__":
 
         mine_data = []
         if DO_MINES:
-            mine_data = do_mine_stuff(img, Nina.get_bbox_ctr(), 8)
+            mine_data = do_mine_stuff(img, Nina.get_bbox_ctr(), START_MINES)
 
         if DO_ROBOT:
             # don't want to illustrate before giving to mine algorithm
