@@ -459,13 +459,13 @@ void ultrasonicChecker()
 
         // check hall sensor:
         switch (digitalRead(HALL_PIN)) {
-          case HIGH:
+          case LOW:
             // Not a live mine
             liveMine = false;
             digitalWrite(GREEN_PIN, HIGH);
             timeToGreenOff = millis();
             break;
-          case LOW:
+          case HIGH:
             // Live mine
             liveMine = true;
             timeToGreenOff = millis();
