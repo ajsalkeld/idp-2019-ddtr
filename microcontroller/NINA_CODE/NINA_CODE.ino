@@ -208,6 +208,7 @@ void loop()
     {
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(TEST);
+      Serial.println(digitalRead(HALL_PIN));
     }
     else if (command == "get status")
     {
