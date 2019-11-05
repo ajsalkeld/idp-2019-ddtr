@@ -183,9 +183,9 @@ void loop()
       lowerFork(DROP);
       delay(30);
       if (liveMine)
-        runMotors(2250,-MAX_SPEED+50, -MAX_SPEED+50);
+        runMotors(2250,-MAX_SPEED, -MAX_SPEED);
       else 
-        runMotors(1500,-MAX_SPEED+50, -MAX_SPEED+50);
+        runMotors(1500,-MAX_SPEED, -MAX_SPEED);
       digitalWrite(RED_PIN, LOW);
       delay(1500);
       timer.disable(redId);
