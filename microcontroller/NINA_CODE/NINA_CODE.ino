@@ -35,7 +35,7 @@ void setup()
   //}
   AFMS.begin();            // Starts with default freq
   servo.attach(SERVO_PIN); // attaches the servo on pin 9 to the servo object
-  servo.write(120);
+  servo.write(145);
 
   pinMode(TRIGGER_PIN, OUTPUT); // Sets the trigPin as an Output
   pinMode(ECHO_PIN, INPUT);     // Sets the echoPin as an Input
@@ -43,7 +43,9 @@ void setup()
   pinMode(RED_PIN, OUTPUT);
   pinMode(GREEN_PIN, OUTPUT);
   pinMode(AMBER_PIN, OUTPUT);
-
+  //Taken pins: 9, 12, 13, 4, 3, 5, 6
+  //Free pins; 7, 8, 10, 11
+  
   digitalWrite(RED_PIN, LOW);
   digitalWrite(AMBER_PIN, LOW);
   digitalWrite(GREEN_PIN, LOW);
@@ -175,7 +177,7 @@ void loop()
     else if (command == "lift fork")
     {
       sendAcknowledgement(packetBuffer, packetSize);
-      liftFork();
+      liftFork(PICK_UP);
     }
     else if (command == "drop mine")
     {
@@ -190,9 +192,8 @@ void loop()
       delay(1500);
       timer.disable(redId);
       carryingMine = false;
-      liftFork();
+      liftFork(DROP);
       delay(50);
-      shakeFork();
       timer.enable(ultrasensorId);
     }
     else if (command == "lower fork")
@@ -229,7 +230,7 @@ void loop()
     else if (command == "reset")
     {
       sendAcknowledgement(packetBuffer, packetSize);
-      liftFork();
+      liftFork(DROP);
       carryingMine = false;
       liveMine = false;
       delay(250);
@@ -345,21 +346,30 @@ void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
   rightMotor->run(rDirection);
 }
 
-void liftFork()
+void liftFork(int dropOrPick)
 {
   /*if (pos < 125) pos = 127;
-  while (pos > 125)
+  */
+  switch (dropOrPick)
   {
-    // in steps of 1 degree
-    pos -= 5;
-    servo.write(pos); // tell servo to go to position in variable 'pos'
-    delay(75);        // waits 15ms for the servo to reach the position
+  case PICK_UP:
+    while (pos > 125)
+    {
+      // in steps of 1 degree
+      pos -= 1;
+      servo.write(pos); // tell servo to go to position in variable 'pos'
+      delay(50);        // waits 15ms for the servo to reach the position
+    }
+    delay(100);
+    forkLow = false;
+    break;
+  case DROP:
+    pos = 125;
+    servo.write(pos);
+    delay(100);
+    forkLow = false;
+    break;
   }
-  delay(100);*/
-  pos = 125;
-  servo.write(pos);
-  delay(100);
-  forkLow = false;
 }
 
 void lowerFork(int dropOrPick)
@@ -401,7 +411,7 @@ void lowerFork(int dropOrPick)
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
     }*/
-    pos = 155;
+    pos = 152;
     servo.write(pos);
     break;
   }
@@ -464,6 +474,7 @@ void ultrasonicChecker()
           Serial.println((int)timeForMine);
           getUSDistance();
           lowerFork(TEST); // Lower for for hall sensor
+          if((int)timeForMine > 3000) timeForMine = 3000;
           delay((int)timeForMine);
           stopMotors();
         }
@@ -506,7 +517,7 @@ void ultrasonicChecker()
         Serial.println((int)timeForMine);
         delay((int)timeForMine);
         stopMotors();
-        liftFork();
+        liftFork(PICK_UP);
         delay(250);
         // Check US again - reattempt if not picked up
         getUSDistance();
