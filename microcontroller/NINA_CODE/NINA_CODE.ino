@@ -192,12 +192,18 @@ void loop()
       carryingMine = false;
       liftFork();
       delay(50);
+      shakeFork();
       timer.enable(ultrasensorId);
     }
     else if (command == "lower fork")
     {
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(PICK_UP);
+    }
+    else if (command == "shake fork")
+    {
+      sendAcknowledgement(packetBuffer, packetSize);
+      shakeFork();
     }
     else if (command == "check ultra")
     {
@@ -399,6 +405,13 @@ void lowerFork(int dropOrPick)
     servo.write(pos);
     break;
   }
+}
+
+void shakeFork()
+{
+  servo.write(pos-4);
+  delay(250);
+  servo.write(pos);
 }
 
 void ultrasonicChecker()
