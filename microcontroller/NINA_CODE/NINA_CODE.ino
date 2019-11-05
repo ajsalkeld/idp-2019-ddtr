@@ -88,36 +88,36 @@ void loop()
     Serial.print("Received packet of size ");
     Serial.println(packetSize);
     Serial.print("From ");
-    remoteIP = Udp.remoteIP();
-    remotePort = Udp.remotePort();
+    remoteIP = Udp.remoteIP();		// Updates the IP and port of the 
+    remotePort = Udp.remotePort();	// computer.
     Serial.print(remoteIP);
     Serial.print(", port ");
     Serial.println(Udp.remotePort());
 
     // read the packet into packetBufffer
     packetBuffer = new char[255];
-
     int len = Udp.read(packetBuffer, 255);
     if (len > 0)
     {
-      packetBuffer[len] = 0;
+      packetBuffer[len] = 0; 		// Null character terminates char[]
     }
     Serial.println("Contents:");
     Serial.println(packetBuffer);
 
+    // Parse the command "run:time:left speed: right speed"
     String command;
     int timeToRun, leftMotorSpeed, rightMotorSpeed;
 
-    char *token;
-    token = strtok(packetBuffer, del); // Get first part - command
+    char *token;			// Buffer to hold parts in
+    token = strtok(packetBuffer, del); 	// Get first part - command
     command = String(token);
 
-    token = strtok(NULL, del); // Get second part - time
-    if (token != NULL)
-    {
+    token = strtok(NULL, del); 		// Get second part - time
+    if (token != NULL)			// If time part doesn't exist, 
+    {					// then nothing to do
       timeToRun = atoi(token);
       Serial.println(timeToRun);
-      token = strtok(NULL, del);
+      token = strtok(NULL, del);	// Get third part - left spd
       if (token != NULL)
       {
         leftMotorSpeed = atoi(token);
@@ -125,23 +125,23 @@ void loop()
         token = strtok(NULL, del);
         if (token != NULL)
         {
-          rightMotorSpeed = atoi(token);
+          rightMotorSpeed = atoi(token); // Get fourth part - right spd
           Serial.println(rightMotorSpeed);
         }
       }
     }
 
-    if (command == "Hello from python")
+    if (command == "Hello from python")	// An opening message - just prompts an ack
     {
       sendAcknowledgement(packetBuffer, packetSize);
       // Connection message received
     }
-    else if (command == "stop")
+    else if (command == "stop")		// Stop the motors
     {
       sendAcknowledgement(packetBuffer, packetSize);
       stopMotors();
     }
-    else if ((command.indexOf("run") >= 0))
+    else if ((command.indexOf("run") >= 0))	// Our run command, as parsed above
     {
       sendAcknowledgement(packetBuffer, packetSize);
       if (timeToRun >= 0)
@@ -150,34 +150,34 @@ void loop()
       }
       else
       {
-        runMotors(0, leftMotorSpeed, rightMotorSpeed);
+        runMotors(0, leftMotorSpeed, rightMotorSpeed);	// Passing 0 runs motors indefinitely
       }
     }
-    else if ((command.indexOf("look mines") >= 0))
-    {
-      sendAcknowledgement(packetBuffer, packetSize);
-      lookForMines = true;
+    else if ((command.indexOf("look mines") >= 0))	// Begin looking for mines.
+    {							// Robot will poll ultrasonic and
+      sendAcknowledgement(packetBuffer, packetSize);	// stop before mines.
+      lookForMines = true;				// CV calls this on approach to mine.
     }
-    else if ((command.indexOf("stop mines") >= 0))
+    else if ((command.indexOf("stop mines") >= 0))	// Stop looking for mines
     {
       sendAcknowledgement(packetBuffer, packetSize);
       lookForMines = false;
     }
-    else if (command == "lift fork")
+    else if (command == "lift fork")			// A debug command to test the fork
     {
       sendAcknowledgement(packetBuffer, packetSize);
       liftFork();
     }
-    else if (command == "drop mine")
+    else if (command == "drop mine")			// Run the mine-dropping procedure
     {
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(DROP);
       delay(30);
       if (liveMine)
-        runMotors(2250,-MAX_SPEED, -MAX_SPEED);
+        runMotors(2250,-MAX_SPEED, -MAX_SPEED);		// Live mine bin needs more reversing.
       else 
         runMotors(1500,-MAX_SPEED, -MAX_SPEED);
-      digitalWrite(RED_PIN, LOW);
+      digitalWrite(RED_PIN, LOW);			// Turn off the RED LED
       delay(1500);
       timer.disable(redId);
       carryingMine = false;
