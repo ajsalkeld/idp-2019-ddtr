@@ -5,49 +5,39 @@ Receives commands from Python script via UDP.
 #include "arduino_secrets.h"
 #include "main.h"
 
-char ssid[] = SECRET_SSID; // your network SSID (name)
-char pass[] = SECRET_PASS; // your network password
+char ssid[] = SECRET_SSID; 	// network SSID (name)
+char pass[] = SECRET_PASS; 	// network password
 
-int status = WL_IDLE_STATUS; // Initial Status
+int status = WL_IDLE_STATUS; 	// Initial Status
 
-WiFiUDP Udp; // Adding udp class
+unsigned int localPort = LOCALPORT; // Local port to listen on
 
-unsigned int localPort = LOCALPORT; // local port to listen on
-
-char *packetBuffer; //buffer to hold incoming packet
-
-int stopTimerId;
-int ultrasensorId;
-
-Adafruit_MotorShield AFMS = Adafruit_MotorShield(); // Shield object
-Adafruit_DCMotor *rightMotor = AFMS.getMotor(1);    // Motor object
-Adafruit_DCMotor *leftMotor = AFMS.getMotor(2);     // Motor object
-
-Servo servo;       // create servo object to control a servo
-SimpleTimer timer; // create timer object for stopping after time
+char *packetBuffer; 		// Buffer to hold incoming packet
 
 void setup()
 {
-  Serial.begin(9600);
-  //while (!Serial)
-  //{
-    //; // Wait for USB serial to connect
-  //}
-  AFMS.begin();            // Starts with default freq
-  servo.attach(SERVO_PIN); // attaches the servo on pin 9 to the servo object
-  servo.write(120);
+  Serial.begin(9600);	   	// USB serial for debug
+  
+  AFMS.begin();            	// Starts motor shield with default freq (1600Hz)
+  servo.attach(SERVO_PIN); 	// attaches the servo on pin 9 to the servo object
+  servo.write(120);		// Move servo to an upward position
 
-  pinMode(TRIGGER_PIN, OUTPUT); // Sets the trigPin as an Output
-  pinMode(ECHO_PIN, INPUT);     // Sets the echoPin as an Input
-  pinMode(HALL_PIN, INPUT);     // Sets hall pin as an input
-  pinMode(RED_PIN, OUTPUT);
-  pinMode(GREEN_PIN, OUTPUT);
-  pinMode(AMBER_PIN, OUTPUT);
+  // Set up digital pins
+  pinMode(TRIGGER_PIN, OUTPUT); // Ultrasonic
+  pinMode(ECHO_PIN, INPUT);     // 
+  pinMode(HALL_PIN, INPUT);     // Hall Sensor
+  pinMode(RED_PIN, OUTPUT);	// LEDs
+  pinMode(GREEN_PIN, OUTPUT);	//
+  pinMode(AMBER_PIN, OUTPUT);	//
 
+  // Set LEDs to low
   digitalWrite(RED_PIN, LOW);
   digitalWrite(AMBER_PIN, LOW);
   digitalWrite(GREEN_PIN, LOW);
 
+  // Set inital speed on motor
+  rightMotor->setSpeed(MAX_SPEED);
+  leftMotor->setSpeed(MAX_SPEED);
 
   // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE)
@@ -70,18 +60,18 @@ void setup()
     delay(10000);
   }
 
-  rightMotor->setSpeed(MAX_SPEED);
-  leftMotor->setSpeed(MAX_SPEED);
+  printWifiStatus(); // Prints wifi status (inc IP address!)
 
-  printWifiStatus(); // Prints wifi status
+  Udp.begin(localPort); // Start UDP comms
 
-  Udp.begin(localPort);
-  ultrasensorId = timer.setInterval(125, ultrasonicChecker); // check ultrasonic 
+  // Timers
+  ultrasensorId = timer.setInterval(125, ultrasonicChecker); // Begin US timer 
   timer.enable(ultrasensorId);
+  // LED Timers
   amberId = timer.setInterval(2000, flashAmber);
   redId = timer.setInterval(2000, flashRed);
-  timer.disable(amberId);
-  timer.disable(redId);
+  timer.disable(amberId); // Disable until needed
+  timer.disable(redId);   // 
 }
 
 void loop()
@@ -89,8 +79,9 @@ void loop()
   // receive communications with commands for navigation
   // interrupt this loop to execute commands
   // and if ultrasonic detects a mine
-  timer.run();
-  int packetSize = Udp.parsePacket();
+  timer.run();	// Runs timers that are due
+
+  int packetSize = Udp.parsePacket(); // Check for packets from Udp buffer
   // If packet is received
   if (packetSize)
   {
@@ -409,7 +400,7 @@ void lowerFork(int dropOrPick)
 
 void shakeFork()
 {
-  servo.write(pos-4);
+  servo.write(145);
   delay(250);
   servo.write(pos);
 }
