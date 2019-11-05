@@ -177,9 +177,9 @@ void loop()
         runMotors(2250,-MAX_SPEED, -MAX_SPEED);		// Live mine bin needs more reversing.
       else 
         runMotors(1500,-MAX_SPEED, -MAX_SPEED);
+      timer.disable(redId);				// Stop flashing red (no longer carrying mine)
       digitalWrite(RED_PIN, LOW);			// Turn off the RED LED
       delay(1500);
-      timer.disable(redId);
       carryingMine = false;
       liftFork();
       delay(50);
