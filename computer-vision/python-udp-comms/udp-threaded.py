@@ -17,7 +17,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind((HOST, PORT))
 
 def rxThread():
-    s.sendto(b"Hello from python", ("192.168.137.46", 2390))
+    s.sendto(b"Hello from python", ("192.168.43.82", 2390))
     while True:
         # Receive BUFFER_SIZE bytes data
         # data is a list with 2 elements

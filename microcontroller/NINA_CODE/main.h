@@ -29,10 +29,17 @@
 #define GREEN_PIN 5
 #define AMBER_PIN 6
 
+// Sound effect Pins
+#define LIVE_MINE_PIN 7
+#define DEAD_MINE_PIN 8
+#define SONG_PIN 10
+#define SUCCESS_PIN 11
+
 // Fork Lifting Variables
 #define PICK_UP 1
 #define DROP 2
 #define TEST 3
+#define SHAKE 4
 
 IPAddress remoteIP; 	// For UDP. These will update when packets
 unsigned int remotePort; // are received.
@@ -50,6 +57,8 @@ bool lookForMines = false;
 int timeToGreenOff;
 int ultrasensorId;
 int stopTimerId;
+int amberId;
+int redId;
 
 // Classe and objectss
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); // Shield object

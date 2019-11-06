@@ -20,7 +20,7 @@ void setup()
   
   AFMS.begin();            	// Starts motor shield with default freq (1600Hz)
   servo.attach(SERVO_PIN); 	// attaches the servo on pin 9 to the servo object
-  servo.write(120);		// Move servo to an upward position
+  servo.write(145);		// Move servo to an upward position
 
   // Set up digital pins
   pinMode(TRIGGER_PIN, OUTPUT); // Ultrasonic
@@ -29,12 +29,21 @@ void setup()
   pinMode(RED_PIN, OUTPUT);	// LEDs
   pinMode(GREEN_PIN, OUTPUT);	//
   pinMode(AMBER_PIN, OUTPUT);	//
+  pinMode(LIVE_MINE_PIN, OUTPUT);
+  pinMode(DEAD_MINE_PIN, OUTPUT);
+  pinMode(SONG_PIN, OUTPUT);
+  pinMode(SUCCESS_PIN, OUTPUT);
 
   // Set LEDs to low
-
   digitalWrite(RED_PIN, LOW);
   digitalWrite(AMBER_PIN, LOW);
   digitalWrite(GREEN_PIN, LOW);
+
+  //Set sound effect pins to high (active low)  
+  digitalWrite(LIVE_MINE_PIN, HIGH);
+  digitalWrite(DEAD_MINE_PIN, HIGH);
+  digitalWrite(SONG_PIN, HIGH);
+  digitalWrite(SUCCESS_PIN, HIGH);
 
   // Set inital speed on motor
   rightMotor->setSpeed(MAX_SPEED);
@@ -172,12 +181,20 @@ void loop()
     else if (command == "drop mine")			// Run the mine-dropping procedure
     {
       sendAcknowledgement(packetBuffer, packetSize);
+      lowerFork(SHAKE);
+      delay(300);
+      liftFork(DROP);
+      delay(300);
+      lowerFork(SHAKE);
+      delay(300);
+      liftFork(DROP);
+      delay(300);
       lowerFork(DROP);
-      delay(30);
+      delay(300);
       if (liveMine)
-        runMotors(2250,-MAX_SPEED, -MAX_SPEED);		// Live mine bin needs more reversing.
+        runMotors(2650,-MAX_SPEED, -MAX_SPEED);		// Live mine bin needs more reversing.
       else 
-        runMotors(1500,-MAX_SPEED, -MAX_SPEED);
+        runMotors(1900,-MAX_SPEED, -MAX_SPEED);
       timer.disable(redId);				// Stop flashing red (no longer carrying mine)
       digitalWrite(RED_PIN, LOW);			// Turn off the RED LED
       delay(1500);
@@ -338,8 +355,6 @@ void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
 
 void liftFork(int dropOrPick)
 {
-  /*if (pos < 125) pos = 127;
-  */
   switch (dropOrPick)
   {
   case PICK_UP:
@@ -364,6 +379,7 @@ void liftFork(int dropOrPick)
 
 void lowerFork(int dropOrPick)
 {
+  static int numDrops = 0; //Variable to play song after 4 drops
   forkLow = true;
   switch (dropOrPick)
   {
@@ -376,9 +392,8 @@ void lowerFork(int dropOrPick)
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
     }*/
-    pos = 162;
+    pos = 159;
     servo.write(pos);
-
     break;
   case TEST:
     /*if (pos > 150) pos = 149;
@@ -403,6 +418,17 @@ void lowerFork(int dropOrPick)
     }*/
     pos = 152;
     servo.write(pos);
+    playSound(SUCCESS_PIN);
+    numDrops++;
+    if (numDrops == 3){
+      playSound(SONG_PIN);
+    }
+    break;
+  case SHAKE:
+    pos = 168;
+    servo.write(pos);
+    delay(100);
+    forkLow = false;
     break;
   }
 }
@@ -459,12 +485,11 @@ void ultrasonicChecker()
         }
         else {
           // reverse back...
-          float timeForMine = (13 - distance) / 7.9 * 1000;
+          float timeForMine = (14 - distance) / 7.9 * 1000;
           runMotors(0, -100, -100); // Drive to 11cm away
           Serial.println((int)timeForMine);
           getUSDistance();
           lowerFork(TEST); // Lower for for hall sensor
-          if((int)timeForMine > 3000) timeForMine = 3000;
           delay((int)timeForMine);
           stopMotors();
         }
@@ -478,11 +503,13 @@ void ultrasonicChecker()
             // Not a live mine
             liveMine = false;
             digitalWrite(GREEN_PIN, HIGH);
+            playSound(DEAD_MINE_PIN);
             timeToGreenOff = millis();
             break;
           case HIGH:
             // Live mine
             liveMine = true;
+            playSound(LIVE_MINE_PIN);
             timeToGreenOff = millis();
             break;
         }
@@ -592,4 +619,10 @@ void flashRed() {
 void turnOffGreenAmber() {
   digitalWrite(AMBER_PIN, LOW);
   digitalWrite(GREEN_PIN, LOW);
+}
+
+void playSound(int sound_pin) {
+  digitalWrite(sound_pin, LOW);
+  delay(2);
+  digitalWrite(sound_pin, HIGH);
 }
