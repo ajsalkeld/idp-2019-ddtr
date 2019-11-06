@@ -327,9 +327,7 @@ void stopMotors()
 // timeToRun in millieconds
 void runMotors(int timeToRun, int leftMotorSpeed, int rightMotorSpeed)
 {
-  if (!liveMine) {
-    timer.enable(amberId);
-  }
+  timer.enable(amberId);
   int lDirection, rDirection;
   if ((leftMotorSpeed >= 0) & (leftMotorSpeed <= 255))
   {
