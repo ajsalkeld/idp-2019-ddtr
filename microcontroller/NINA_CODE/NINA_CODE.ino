@@ -12,6 +12,8 @@ int status = WL_IDLE_STATUS; 	// Initial Status
 
 unsigned int localPort = LOCALPORT; // Local port to listen on
 
+int numDrops = 0;
+
 char *packetBuffer; 		// Buffer to hold incoming packet
 
 void setup()
@@ -358,7 +360,7 @@ void liftFork(int dropOrPick)
   switch (dropOrPick)
   {
   case PICK_UP:
-    while (pos > 125)
+    while (pos > 137)
     {
       // in steps of 1 degree
       pos -= 1;
@@ -379,7 +381,6 @@ void liftFork(int dropOrPick)
 
 void lowerFork(int dropOrPick)
 {
-  static int numDrops = 0; //Variable to play song after 4 drops
   forkLow = true;
   switch (dropOrPick)
   {
@@ -418,7 +419,7 @@ void lowerFork(int dropOrPick)
     }*/
     pos = 152;
     servo.write(pos);
-    playSound(SUCCESS_PIN);
+    playSound(SONG_PIN);
     numDrops++;
     if (numDrops == 3){
       playSound(SONG_PIN);
