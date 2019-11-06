@@ -12,7 +12,7 @@ int status = WL_IDLE_STATUS; 	// Initial Status
 
 unsigned int localPort = LOCALPORT; // Local port to listen on
 
-int numDrops = 0;
+int numDrops = 1;
 
 char *packetBuffer; 		// Buffer to hold incoming packet
 
@@ -246,6 +246,10 @@ void loop()
       timer.enable(ultrasensorId);
       lookForMines = false;
     }
+    else if (command == "return home") {
+      digitalWrite(SUCCESS_PIN, LOW);
+      digitalWrite(SONG_PIN, LOW);
+    }
     else
     {
       sendRefusal(packetBuffer, packetSize, command);
@@ -419,10 +423,12 @@ void lowerFork(int dropOrPick)
     }*/
     pos = 152;
     servo.write(pos);
-    playSound(SUCCESS_PIN);
     numDrops++;
-    if (numDrops == 3){
-      playSound(SONG_PIN);
+    if ((numDrops % 3) == 0){
+    playSound(SONG_PIN);
+    }
+    else {
+      playSound(SUCCESS_PIN);
     }
     break;
   case SHAKE:
