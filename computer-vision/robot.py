@@ -382,7 +382,7 @@ class Robot():
         if self.state == "depositing mine":
 
             if self.state != self.prev_state:
-                print("depositing mine, prev state", self.prev_state, "it", self.state_i % 1000)
+                # print("depositing mine, prev state", self.prev_state, "it", self.state_i % 1000)
                 self.prev_state = "depositing mine"
                 self.send_cmd("drop mine")
                 self.n_mines_known -= 1
@@ -950,7 +950,8 @@ class Robot():
         else:
             if len(mine_centres) != self.n_mines_known and len(mine_centres) != START_MINES:
                 print(f"  {len(mine_centres)} mines left - expected {self.n_mines_known}.")
-                self.n_mines_known = len(mine_centres)
+                if len(mine_centres) == self.n_mines_known + 1:
+                    self.n_mines_known = len(mine_centres)
 
         self.mine_locs = [mine.pos for mine in mine_centres]
         self.wants_mine_data_flag = False
