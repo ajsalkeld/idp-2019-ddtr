@@ -419,16 +419,15 @@ void lowerFork(int dropOrPick)
     }*/
     pos = 152;
     servo.write(pos);
-    playSound(SONG_PIN);
+    playSound(SUCCESS_PIN);
     numDrops++;
     if (numDrops == 3){
       playSound(SONG_PIN);
     }
     break;
   case SHAKE:
-    pos = 168;
+    pos = 165;
     servo.write(pos);
-    delay(100);
     break;
   }
 }
