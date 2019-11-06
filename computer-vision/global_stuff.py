@@ -11,7 +11,8 @@ import math
 USE_VIDEO = True
 DO_MINES = True
 DO_ROBOT = True
-START_MINES = 5
+RECORD = True
+START_MINES = 8
 
 F_NAME = "robot_mode.jpg"
 

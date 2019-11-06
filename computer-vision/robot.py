@@ -84,6 +84,7 @@ class Robot():
         self.prev_state = ""
         self.first_mine = True
         self.target_mine = None
+        self.target_mine_idx = None
         self.has_mine = False
         self.looking_for_mines = False
         self.n_mines_known = START_MINES
@@ -176,7 +177,16 @@ class Robot():
         if self.state == "looking for mines":
             if self.state != self.prev_state:
                 self.prev_state = "looking for mines"
-                self.wants_mine_data_flag = True
+
+                if self.n_mines_known > 7: #TODO: CHANGE BACK TO 2
+                    self.wants_mine_data_flag = True
+                else:
+                    print("before remove")
+                    del self.mine_locs[self.target_mine_idx]
+                    print("after remove")
+                # not much point in increasing the number of mines known
+                # past this point (only 2 left -> not much time left). So
+                # go with the number known already 
 
 
             if not self.wants_mine_data():
@@ -193,7 +203,7 @@ class Robot():
                     self.mine_locs.sort(key=lambda loc: pythag(loc - self.search_start_pos))
                 
                 print("  deciding on target mine...")
-                for mine in self.mine_locs:
+                for idx, mine in enumerate(self.mine_locs):
                     if mine[1] > MINE_AREA_BOT_RIGHT.pos[1] - MINE_BLIND_Y_THRESH:
                         print("    mine is close to edge of camera")
                         continue
@@ -203,6 +213,7 @@ class Robot():
                         continue
 
                     self.target_mine = mine
+                    self.target_mine_idx = idx
 
                     if no_collide_chance():
                         self.state = "moving to mine pos"
@@ -214,6 +225,7 @@ class Robot():
                 else:
                     print("    all mines left are close to edge of camera")
                     self.target_mine = self.mine_locs[0]
+                    self.target_mine_idx = 0
                     if no_collide_chance():
                         self.state = "moving to mine pos"
                     else:
@@ -385,8 +397,13 @@ class Robot():
                 # print("depositing mine, prev state", self.prev_state, "it", self.state_i % 1000)
                 self.prev_state = "depositing mine"
                 self.send_cmd("drop mine")
+                self.deposit_time = time.time()
+
+            if time.time() - self.deposit_time > 2:
+
                 self.n_mines_known -= 1
                 self.deposit_counts[self.has_mine] += 1
+                print(f"incrementing {self.has_mine} count")
 
                 if self.n_mines_known == 0:
                     self.state = "moving to end pos"
@@ -394,8 +411,7 @@ class Robot():
                     print("looking for mines")
                     self.state = "looking for mines"
 
-                self.deposit_time = time.time()
-                print(f"incrementing {self.has_mine} count")
+
 
             
 
@@ -785,7 +801,9 @@ class Robot():
 
             if abs(theta_err) > DEG_TO_RAD * 3:
                 
-                if abs(theta_err) > DEG_TO_RAD * 50:
+                if abs(theta_err) > DEG_TO_RAD * 150:
+                    theta_rate = - MAX_THETA_RATE                
+                elif abs(theta_err) > DEG_TO_RAD * 50:
                     theta_rate = - MAX_THETA_RATE * sign(theta_err)
                 elif abs(theta_err) > DEG_TO_RAD * 25:
                     theta_rate = - MAX_THETA_RATE  * sign(theta_err) / 2

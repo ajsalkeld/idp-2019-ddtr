@@ -25,7 +25,7 @@ def do_mine_stuff(frame, nina_mask_ctr, n_mines_known):
 
     mine_area_mask = arena_mask_cpy[y1:y2, x1:x2]
     
-    BASE_DETECTION_THRESH = 30
+    BASE_DETECTION_THRESH = 25
 
     detection_thresh = BASE_DETECTION_THRESH
     mine_details = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
@@ -41,11 +41,13 @@ def do_mine_stuff(frame, nina_mask_ctr, n_mines_known):
             print(f"  not enough mines ({len(mine_details)} / {n_mines_known}) - reducing threshold to {detection_thresh}")
             mine_details = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
         
+        # this bit is now handled by nina when receiving data
+        ####################
         # probably garbage due to no mines being in the field
         # - no contrast so thinks lots of mines in arena
-        if len(mine_details) > n_mines_known + 4:
-            print(f"  too many mines ({len(mine_details)} / {n_mines_known}) - returning none")
-            return []
+        # if len(mine_details) > n_mines_known + 1:
+            # print(f"  too many mines ({len(mine_details)} / {n_mines_known}) - returning none")
+            # return mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
 
         # # when done, reduce threshold 1 more time in case Nina failed to pick up
         # detection_thresh -= 5
@@ -147,6 +149,11 @@ if __name__ == "__main__":
         set_params(cap, general_vid_params)
         set_params(cap, robot_vid_params)
 
+        if RECORD:
+            out_vid = cv2.VideoWriter("recording.avi", 
+                                    cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'),
+                                    10, tuple(RESOLUTION))
+
         end_setup = time.time()
 
         print(f"done. setup took {end_setup - start_setup} seconds (jheez)")
@@ -203,6 +210,9 @@ if __name__ == "__main__":
 
             to_show = illustrate(r_frame, mine_data)
 
+            if RECORD:
+                out_vid.write(to_show)
+
             show_img(to_show)
 
             # time.sleep(2)
@@ -236,6 +246,9 @@ if __name__ == "__main__":
         print("releasing camera 'capture' object")
         cap.release()
         cv2.destroyAllWindows()
+
+        if RECORD:
+            out_vid.release()
 
         udpc.STOP_THREAD = True
 
