@@ -428,7 +428,6 @@ void lowerFork(int dropOrPick)
     pos = 168;
     servo.write(pos);
     delay(100);
-    forkLow = false;
     break;
   }
 }
