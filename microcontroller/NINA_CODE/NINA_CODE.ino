@@ -208,33 +208,33 @@ void loop()
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(PICK_UP);
     }
-    else if (command == "shake fork")
+    else if (command == "shake fork")			// Moves fork slightly to debug shaking
     {
       sendAcknowledgement(packetBuffer, packetSize);
       shakeFork();
     }
-    else if (command == "check ultra")
+    else if (command == "check ultra")			// Updates the distance reading for debug
     {
       sendAcknowledgement(packetBuffer, packetSize);
       ultrasonicChecker();
     }
-    else if (command == "check hall")
+    else if (command == "check hall")			// Debug of the hall sensor
     {
       sendAcknowledgement(packetBuffer, packetSize);
       lowerFork(TEST);
       Serial.println(digitalRead(HALL_PIN));
     }
-    else if (command == "get status")
+    else if (command == "get status")			// Sends current variables
     {
       sendAcknowledgement(packetBuffer, packetSize);
       sendStatus();
     }
-    else if (command == "enable timer")
+    else if (command == "enable timer")			// Force enable the US timer for debug
     {
       sendAcknowledgement(packetBuffer, packetSize);
       timer.enable(ultrasensorId);
     }
-    else if (command == "reset")
+    else if (command == "reset")			// Resets the robot
     {
       sendAcknowledgement(packetBuffer, packetSize);
       liftFork(DROP);
