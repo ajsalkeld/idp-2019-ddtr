@@ -473,6 +473,15 @@ void ultrasonicChecker()
         // Move forward over mine and check hall sensor
         // calculate time to run forward, 7.5 cm/s
         liveMine = NULL;
+
+	// Initially check hall sensor
+	if (digitalRead(HALL_PIN) == HIGH) {
+	  liveMine = true;
+	}
+	else {
+	  liveMine = false;
+	}
+
         if (distance > 14) {
           float timeForMine = (distance - 14) / 7.9 * 1000;
           runMotors(0, 100, 100); // Drive to 11cm away
@@ -495,29 +504,40 @@ void ultrasonicChecker()
 
         timer.disable(amberId);
         digitalWrite(AMBER_PIN, HIGH);
-
-        // check hall sensor:
-        switch (digitalRead(HALL_PIN)) {
-          case LOW:
-            // Not a live mine
-            liveMine = false;
-            digitalWrite(GREEN_PIN, HIGH);
-            playSound(DEAD_MINE_PIN);
-            timeToGreenOff = millis();
-            break;
-          case HIGH:
-            // Live mine
-            liveMine = true;
-            playSound(LIVE_MINE_PIN);
-            timeToGreenOff = millis();
-            break;
-        }
+	
+	if ((liveMine == false) && (digitalRead(HALL_PIN) == HIGH)){
+	  liveMine = true;
+	}
+	
         delay(250);
         runMotors(0,-100,-100);
         delay(1000);
         stopMotors();
-
-        //getUSDistance();
+	
+	
+        // check hall sensor:
+	if (liveMine == false) {
+          switch (digitalRead(HALL_PIN)) {
+            case LOW:
+              // Not a live mine
+              liveMine = false;
+              digitalWrite(GREEN_PIN, HIGH);
+              playSound(DEAD_MINE_PIN);
+              timeToGreenOff = millis();
+              break;
+            case HIGH:
+              // Live mine
+              liveMine = true;
+              playSound(LIVE_MINE_PIN);
+              timeToGreenOff = millis();
+              break;
+	  }
+	}
+	else if (liveMine == true) {
+	  playSound(LIVE_MINE_PIN);
+	  timeToGreenOff = millis();
+	}
+	
         // pickup
         lowerFork(PICK_UP);
         delay(100);
@@ -533,7 +553,47 @@ void ultrasonicChecker()
         Serial.println((int)timeForMine);
         delay((int)timeForMine);
         stopMotors();
+
+        // check hall sensor before pickup:
+	if (liveMine == false) {
+          switch (digitalRead(HALL_PIN)) {
+            case LOW:
+              // Not a live mine
+              liveMine = false;
+              digitalWrite(GREEN_PIN, HIGH);
+              playSound(DEAD_MINE_PIN);
+              timeToGreenOff = millis();
+              break;
+            case HIGH:
+              // Live mine
+              liveMine = true;
+              playSound(LIVE_MINE_PIN);
+              timeToGreenOff = millis();
+              break;
+	  }
+	}
+
         liftFork(PICK_UP);
+
+        // check hall sensor for last time:
+	if (liveMine == false) {
+          switch (digitalRead(HALL_PIN)) {
+            case LOW:
+              // Not a live mine
+              liveMine = false;
+              digitalWrite(GREEN_PIN, HIGH);
+              playSound(DEAD_MINE_PIN);
+              timeToGreenOff = millis();
+              break;
+            case HIGH:
+              // Live mine
+              liveMine = true;
+              playSound(LIVE_MINE_PIN);
+              timeToGreenOff = millis();
+              break;
+	  }
+	}
+
         delay(250);
         // Check US again - reattempt if not picked up
         getUSDistance();
