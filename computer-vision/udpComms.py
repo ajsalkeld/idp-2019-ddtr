@@ -39,10 +39,10 @@ def rxThread():
 
                 except:
                     print("garbage data")
-                    # pass
+                    pass
             else:
                 print("no response")
-                # pass
+                pass
 
                     # print("failed to decode json: ", new_data, "\nreason:", e)
             # if data:
@@ -60,7 +60,7 @@ def rxThread():
 def sendCommand(command):
     s.sendto(command, (IP, 2390))
 
-IP = "192.168.137.229"
+IP = "192.168.43.82"
 
 # def setup():
 # bind all IP

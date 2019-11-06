@@ -178,7 +178,8 @@ ARENA_BOT_RIGHT = Point(pos=(2.4, 2.4))
 ARENA_IDX_H, ARENA_IDX_W = ARENA_BOT_RIGHT - ARENA_TOP_LEFT
 
 MINE_AREA_TOP_LEFT = Point(pos=(0.3, 0.3))
-MINE_AREA_BOT_RIGHT = Point(pos=(2.1-0.5-TAPE_THICKNESS/2, 2.1))
+MINE_AREA_BOT_RIGHT = Point(pos=(2.4-0.6
+, 2.1))
 
 # MINE_AREA_TOP_LEFT = Point(pos=(0.6, 0.35))
 # MINE_AREA_BOT_RIGHT = Point(pos=(1.8, 2.0))
@@ -197,9 +198,9 @@ DEAD_DEPOSIT_TOP_LEFT = Point(pos=(2.4-0.29, 2.4-0.9))
 DEAD_DEPOSIT_BOT_RIGHT = Point(pos=(2.4-TAPE_THICKNESS/2, 2.4-0.6-TAPE_THICKNESS/2))
 
 SAFE_LINE_X_POS = 2.4 - 0.5
-LIVE_DEPOSIT_Y_POS = 2.4 - 0.45
+LIVE_DEPOSIT_Y_POS = 2.4 - 0.51
 DEAD_DEPOSIT_Y_POS = 2.4 - 0.75
-MINE_BLIND_Y_THRESH = 2.4 - 0.45
+MINE_BLIND_Y_THRESH = 0.2
 SEARCH_START_Y_POS = 2.4 - 0.6
 
 
@@ -222,8 +223,10 @@ def draw_arena_features(img):
                         (MINE_AREA_BOT_RIGHT - MINE_AREA_DILATION).cv_tup, (255, 100, 100), 1)
 
     # mine area - cutoff lines for close to blind regions
-    cv2.line(img, Point(pos=(MINE_AREA_BOT_RIGHT.pos[0], MINE_BLIND_Y_THRESH)).cv_tup,
-                    Point(pos=(MINE_AREA_TOP_LEFT.pos[0], MINE_BLIND_Y_THRESH)).cv_tup, (255, 50, 50), 1)
+    cv2.line(img, Point(pos=(MINE_AREA_BOT_RIGHT.pos[0], MINE_AREA_BOT_RIGHT.pos[1] - MINE_BLIND_Y_THRESH)).cv_tup,
+                    Point(pos=(MINE_AREA_TOP_LEFT.pos[0],  MINE_AREA_BOT_RIGHT.pos[1] - MINE_BLIND_Y_THRESH)).cv_tup, (255, 50, 50), 1)
+    cv2.line(img, Point(pos=(MINE_AREA_BOT_RIGHT.pos[0],  MINE_AREA_TOP_LEFT.pos[1] + MINE_BLIND_Y_THRESH)).cv_tup,
+                    Point(pos=(MINE_AREA_TOP_LEFT.pos[0], MINE_AREA_TOP_LEFT.pos[1] + MINE_BLIND_Y_THRESH)).cv_tup, (255, 50, 50), 1)
   
     # cv2.line(img, Point(pos=(MINE_AREA_BOT_RIGHT.pos[0], MINE_BLIND_BAND)).cv_tup,
                     # Point(pos=(MINE_AREA_TOP_LEFT.pos[0], MINE_BLIND_BAND)).cv_tup, (255, 50, 50), 1)
@@ -231,8 +234,8 @@ def draw_arena_features(img):
 
     # live mine deposit
     # cv2.rectangle(img, LIVE_DEPOSIT_TOP_LEFT.cv_tup, LIVE_DEPOSIT_BOT_RIGHT.cv_tup, (0, 0, 255), 2)
-    # cv2_cross(img, Point(pos=(SAFE_LINE_X_POS, LIVE_DEPOSIT_Y_POS)).idx, 3, (255, 255, 255), 1)
-    # cv2_cross(img, Point(pos=(SAFE_LINE_X_POS, DEAD_DEPOSIT_Y_POS)).idx, 3, (255, 255, 255), 1)
+    cv2_cross(img, Point(pos=(SAFE_LINE_X_POS, LIVE_DEPOSIT_Y_POS)).idx, 3, (255, 255, 255), 1)
+    cv2_cross(img, Point(pos=(SAFE_LINE_X_POS, DEAD_DEPOSIT_Y_POS)).idx, 3, (255, 255, 255), 1)
 
     # dead mine deposit
     # cv2.rectangle(img, DEAD_DEPOSIT_TOP_LEFT.cv_tup, DEAD_DEPOSIT_BOT_RIGHT.cv_tup, (0, 255, 0), 2)
