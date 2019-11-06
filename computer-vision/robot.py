@@ -29,6 +29,8 @@ RED2 = np.array([340, 360])
 MAX_THETA_RATE = 0.5
 MAX_TRANS_RATE = 1
 
+CV_N_MINE_CUTOFF = 2
+
 POS_DEADBAND_W = 0.03 # m
 
 class Robot():
@@ -178,20 +180,13 @@ class Robot():
             if self.state != self.prev_state:
                 self.prev_state = "looking for mines"
 
-                if self.n_mines_known > 7: #TODO: CHANGE BACK TO 2
+                if self.n_mines_known > CV_N_MINE_CUTOFF:
                     self.wants_mine_data_flag = True
-                else:
-                    print("before remove")
-                    del self.mine_locs[self.target_mine_idx]
-                    print("after remove")
-                # not much point in increasing the number of mines known
-                # past this point (only 2 left -> not much time left). So
-                # go with the number known already 
 
 
             if not self.wants_mine_data():
 
-                # print("mine locs:", self.mine_locs)
+                print("mine locs:", self.mine_locs)
 
                 # sort by nearest to deposit area, as long
                 # as out of mine blind band plus 20cm (to avoid collisions)
@@ -226,10 +221,7 @@ class Robot():
                     print("    all mines left are close to edge of camera")
                     self.target_mine = self.mine_locs[0]
                     self.target_mine_idx = 0
-                    if no_collide_chance():
-                        self.state = "moving to mine pos"
-                    else:
-                        self.state = "moving to mine search start pos"
+                    self.state = "moving to edge mine search start pos"
 
                 print("  picked mine at", self.target_mine)
 
@@ -253,17 +245,19 @@ class Robot():
                         self.prev_state = "moving to mine pos"
                         self.set_target_pos(self.target_mine)
 
-                    if USE_VIDEO and udpc.CURR_UDP_DATA is not None and time.time() - self.deposit_time > 5:
+                    if USE_VIDEO and udpc.CURR_UDP_DATA is not None and time.time() - self.deposit_time > 10:
                         if self.theta_err is not None and self.pos_err is not None:
                             if self.pos_err < 0.25 and self.theta_err < 3 * DEG_TO_RAD and not self.looking_for_mines:
                                 self.send_cmd("look mines")
                                 self.look_mines_time = time.time()
 
                         if udpc.CURR_UDP_DATA["carryingMine"]:
+                            # print("carrying mine")
                             self.looking_for_mines = False
                             self.state = "blind reverse after mine pickup"
 
                         if time.time() - self.look_mines_time > 10 and udpc.CURR_UDP_DATA["lookForMines"]:
+                            print("hung around for too long looking - picking target mine again")
                             self.state = "looking for mines"
 
 
@@ -404,6 +398,9 @@ class Robot():
                 self.n_mines_known -= 1
                 self.deposit_counts[self.has_mine] += 1
                 print(f"incrementing {self.has_mine} count")
+
+                print("removing mine location from mine_locs")
+                del self.mine_locs[self.target_mine_idx]
 
                 if self.n_mines_known == 0:
                     self.state = "moving to end pos"
