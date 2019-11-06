@@ -560,15 +560,11 @@ void ultrasonicChecker()
             case LOW:
               // Not a live mine
               liveMine = false;
-              digitalWrite(GREEN_PIN, HIGH);
-              playSound(DEAD_MINE_PIN);
-              timeToGreenOff = millis();
               break;
             case HIGH:
               // Live mine
               liveMine = true;
               playSound(LIVE_MINE_PIN);
-              timeToGreenOff = millis();
               break;
 	  }
 	}
@@ -581,15 +577,11 @@ void ultrasonicChecker()
             case LOW:
               // Not a live mine
               liveMine = false;
-              digitalWrite(GREEN_PIN, HIGH);
-              playSound(DEAD_MINE_PIN);
-              timeToGreenOff = millis();
               break;
             case HIGH:
               // Live mine
               liveMine = true;
               playSound(LIVE_MINE_PIN);
-              timeToGreenOff = millis();
               break;
 	  }
 	}
