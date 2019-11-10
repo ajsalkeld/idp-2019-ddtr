@@ -1,3 +1,5 @@
+# program entry point - contains main loop and interacts with arena.py, robot.py, arena.py
+# NOTE - this code is for Python 3.6 onwards (there are f-strings)
 from global_stuff import *
 
 import mines
@@ -10,7 +12,9 @@ from arena import *
 pt = Point
 
 
-def do_mine_stuff(frame, nina_mask_ctr, n_mines_known):
+# applies mines.py detection code repeatedly to masked image
+# until correct number of mines detected
+def get_mine_coords(frame, nina_mask_ctr, n_mines_known):
 
     frame_grey = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
 
@@ -20,12 +24,13 @@ def do_mine_stuff(frame, nina_mask_ctr, n_mines_known):
 
     arena_mask_cpy = ARENA_MASK.copy()
 
+    # mask out the area around Nina
     if nina_mask_ctr is not None:
         cv2.drawContours(arena_mask_cpy, [nina_mask_ctr], 0, (0, 0, 0), -1)
 
     mine_area_mask = arena_mask_cpy[y1:y2, x1:x2]
     
-    BASE_DETECTION_THRESH = 25
+    BASE_DETECTION_THRESH = 25 # heuristic start value
 
     detection_thresh = BASE_DETECTION_THRESH
     mine_details = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
@@ -33,31 +38,13 @@ def do_mine_stuff(frame, nina_mask_ctr, n_mines_known):
     # start at high threshold (detect fewer mines) and increase until enough mines found
     if n_mines_known is not None:
         while len(mine_details) < n_mines_known:
-            if detection_thresh <= 10:
+            if detection_thresh <= 10: # heuristic end value - starts detecting arena as mines below here
                 print(f"  too many attempts. Giving up with {len(mine_details)} mines")
                 return mine_details
 
             detection_thresh -= 2
             print(f"  not enough mines ({len(mine_details)} / {n_mines_known}) - reducing threshold to {detection_thresh}")
             mine_details = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
-        
-        # this bit is now handled by nina when receiving data
-        ####################
-        # probably garbage due to no mines being in the field
-        # - no contrast so thinks lots of mines in arena
-        # if len(mine_details) > n_mines_known + 1:
-            # print(f"  too many mines ({len(mine_details)} / {n_mines_known}) - returning none")
-            # return mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
-
-        # # when done, reduce threshold 1 more time in case Nina failed to pick up
-        # detection_thresh -= 5
-        # print(f" all mines detected, but reducing threshold once to {detection_thresh} in case Nina missed one")
-        # mine_details_2 = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
-
-        # if len(mine_details_2) > len(mine_details) + 2 or len(mine_details_2) < len(mine_details):
-        #     print("    never mind, using previous threshold")
-        # else:
-        #     mine_details = mine_details_2
 
         print(f"  mines detected: {len(mine_details)} / {n_mines_known}")
 
@@ -67,15 +54,15 @@ def do_mine_stuff(frame, nina_mask_ctr, n_mines_known):
     return mine_details
 
 
+# image shower function which works whether using video or not
 def show_img(frame):
-    
     # frame = cv2.resize(frame, tuple(2*RESOLUTION))
-
     if USE_VIDEO:
         cv2.imshow("frame", frame) 
         # cv2.waitKey(0)
     else:
         mpl_show(frame)
+
 
 def illustrate(frame, mine_details=[]):
 
@@ -87,12 +74,12 @@ def illustrate(frame, mine_details=[]):
             cv2_cross(frame, centre.cv_tup, 2, (0,100,255), 1)
             # print(f"pos: {centre.pos}")
 
-    # robot.detect_robot(frame)
 
     # Display the resulting frame
     return frame
  
 
+# on startup
 general_vid_params = {
     "h_res" : {"idx" : 3, "setval" : RESOLUTION[0]},
     "v_res" : {"idx" : 4, "setval" : RESOLUTION[1]},
@@ -100,6 +87,7 @@ general_vid_params = {
     "brightness" : {"idx" : 11, "setval" : 32.0}
 }
 
+# increased exposure
 mine_vid_params = {
     # this sets resolution lower
     "h_res" : {"idx" : 3, "setval" : RESOLUTION[0]},
@@ -108,6 +96,7 @@ mine_vid_params = {
     "exposure" : {"idx" : 15, "setval" : -7.0} # -8.0 is max exposure
 }
 
+# reduced exposure
 robot_vid_params = {
     "h_res" : {"idx" : 3, "setval" : RESOLUTION[0]},
     "v_res" : {"idx" : 4, "setval" : RESOLUTION[1]},
@@ -115,12 +104,16 @@ robot_vid_params = {
     "exposure" : {"idx" : 15, "setval" : -4.0}
 }
 
-# USE THESE WHEN DONE SO OTHER PEOPLE DON'T REALISE (old camera exposure)
+# change video params back to what they were before we connected
 default_vid_params = {
     "saturation" : {"idx" : 12, "setval" : 28.0},
     "exposure" : {"idx" : 15, "setval" : -7.0}
 }
 
+
+# utility function together with above parameter sets
+# to interact with the camera
+# (opencv interface isn't particularly friendly)
 def set_params(cap, params, verbose=False):
 
     for key, data in params.items():
@@ -129,16 +122,21 @@ def set_params(cap, params, verbose=False):
         if (not ret) and verbose:
             print("failed")
 
-    time.sleep(1)
+    # exposure adjustment takes time
+    if "exposure" in params:
+        time.sleep(1) 
 
 
+# obtain frame from camera, masked with ARENA_MASK
 def get_frame(cap):
     ret, frame = cap.read()
     return cv2.bitwise_and(frame, cv2.cvtColor(ARENA_MASK, cv2.COLOR_GRAY2RGB))
 
 
+# program entry point
 if __name__ == "__main__":
 
+    # this is used during actual competition
     if USE_VIDEO:
 
         print("setting up camera... (takes a while!)")
@@ -149,6 +147,7 @@ if __name__ == "__main__":
         set_params(cap, general_vid_params)
         set_params(cap, robot_vid_params)
 
+        # to save a video file of the computer vision - not much overhead here
         if RECORD:
             out_vid = cv2.VideoWriter("recording.avi", 
                                     cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'),
@@ -165,21 +164,21 @@ if __name__ == "__main__":
         mine_data = []
         i = 0
 
+        # main loop
         while True:
 
+            # switch to mine params and obtain mine positions when desired
+            # (at start and after deposits until robot.CV_N_MINE_CUTOFF left)
             if Nina.wants_mine_data() and DO_MINES:
                 
-                print("getting mines")
+                print("getting mines...")
 
                 set_params(cap, mine_vid_params)
 
                 m_frame = get_frame(cap)
-                cv2.imwrite("mine_mode.jpg", m_frame)
+                cv2.imwrite("mine_mode.jpg", m_frame) # for debugging/single-frame use
 
-                mine_data = do_mine_stuff(m_frame, Nina.get_bbox_ctr(), Nina.n_mines_known)
-
-                # print(mine_data)
-                # continue
+                mine_data = get_mine_coords(m_frame, Nina.get_bbox_ctr(), Nina.n_mines_known)
 
                 Nina.set_mine_locs([centre for centre, rad in mine_data])
 
@@ -187,25 +186,23 @@ if __name__ == "__main__":
                 
 
             r_frame = get_frame(cap)
-            cv2.imwrite("robot_mode.jpg", r_frame)
+            cv2.imwrite("robot_mode.jpg", r_frame) # for debugging/single-frame use
         
-            r_frame = cv2.resize(r_frame, tuple(RESOLUTION))
+            r_frame = cv2.resize(r_frame, tuple(RESOLUTION)) # just in case
 
+            # locate Nina in the frame
             Nina.update_pos(r_frame)
+
+            # receive data from Nina (2 Hz)
             Nina.recv_update()
 
-            # if i < 10:
-            #     Nina.set_target_pos(np.array([1.0, 1.5]))
-
-            # if Nina.achieved_target:
-            #     Nina.wants_mine_data_flag = True
-            #     # Nina.set_target_pos(np.random.rand(2)*1.4 + 0.5)
-            #     print("set new target")
-
+            # update Nina internal state machine
             Nina.update_state()
 
+            # draw for cv display
             Nina.illustrate(r_frame)
             
+            # based on position, update command to Nina
             Nina.control_to_target()
 
             to_show = illustrate(r_frame, mine_data)
@@ -215,16 +212,11 @@ if __name__ == "__main__":
 
             show_img(to_show)
 
-            # time.sleep(2)
-
-            # i += 1
+            # keys to test functions of Nina
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 Nina.send_cmd("stop", True)
                 break
-            # if key & 0xFF == ord('s'):
-            #     i += 1
-            #     cv2.imwrite("save{i}.jpg", to_show)
             if key & 0xFF == ord('r'):
                 Nina.send_cmd("reset", True)
             if key & 0xFF == ord('d'):
@@ -241,6 +233,7 @@ if __name__ == "__main__":
                 Nina.reset()
 
 
+        # clean up on exit
         set_params(cap, default_vid_params)
 
         print("releasing camera 'capture' object")
@@ -253,6 +246,7 @@ if __name__ == "__main__":
         udpc.STOP_THREAD = True
 
 
+    # run on single frame for testing
     else:
         print(f"running on single frame (fpath: {F_NAME})")
 
@@ -262,16 +256,13 @@ if __name__ == "__main__":
         if DO_ROBOT:
             Nina.update_pos(img)
 
-
         mine_data = []
         if DO_MINES:
-            mine_data = do_mine_stuff(img, Nina.get_bbox_ctr(), START_MINES)
+            mine_data = get_mine_coords(img, Nina.get_bbox_ctr(), START_MINES)
 
         if DO_ROBOT:
-            # don't want to illustrate before giving to mine algorithm
+            # don't want to illustrate before giving to mine algorithm - do it here
             Nina.illustrate(img)
-            # Nina.set_target_pos(np.array([2.0, 2.0]))
-            # Nina.control_to_target()
 
         illustrate(img, mine_data)
         mpl_show(img)

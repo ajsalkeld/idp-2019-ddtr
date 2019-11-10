@@ -1,3 +1,4 @@
+# collection of general-use functions and imports
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
@@ -8,10 +9,13 @@ import socket
 import threading
 import math
 
+# for debugging, sometimes main.py is run with
+# a single frame/with only robot or mine detection enabled.
+# These paramaters control the program's operation
 USE_VIDEO = True
 DO_MINES = True
 DO_ROBOT = True
-RECORD = True
+RECORD = False
 START_MINES = 8
 
 F_NAME = "robot_mode.jpg"
@@ -26,6 +30,8 @@ FPS = 10
 # scale vs 640, 480
 IDX_SCALE = RESOLUTION[0] / 640.0
 
+
+# wrapper for commonly-used matplotlib display function for debugging
 def mpl_show(img):
 
     if len(img.shape) > 2:
@@ -38,24 +44,8 @@ def mpl_show(img):
     plt.show()
 
 
-def cv2_cross(img, idx, size, colour, t=1):
-    y, x = idx
-    cv2.line(img, tuple([y - size, x - size]), tuple([y + size, x + size]), colour, t)
-    cv2.line(img, tuple([y + size, x - size]), tuple([y - size, x + size]), colour, t)
-
-def simple_brighten(img, a=1.0, b=0.0):
-    new_img = np.zeros_like(img)
-    for y in range(img.shape[1]):
-        for x in range(img.shape[0]):
-            new_img = np.clip(a*img[y,x] + b, 0, 255)
-    return new_img
-
-
-def gamma_brighten(img, g=0.2):
-    return apply_fn(img, lambda x: np.clip(pow(x / 255.0, g) * 255.0, 0, 255))    
-
-
-
+# quickly apply a function to an image via a lookup table
+# (lookup implementation is in c++)
 def apply_fn(img, fn):
     
     lookUpTable = np.empty((1,256), np.uint8)
@@ -64,6 +54,12 @@ def apply_fn(img, fn):
     
     return cv2.LUT(img, lookUpTable)
 
+
+# brighten using gamma value (exponential function)
+def gamma_brighten(img, g=0.2):
+    return apply_fn(img, lambda x: np.clip(pow(x / 255.0, g) * 255.0, 0, 255))    
+
+# general utility for debugging
 class Stopwatch():
 
     def __init__(self):
@@ -82,13 +78,20 @@ class Stopwatch():
             return delta_t
         
         return 0
-        
+
+
+
+# repeated-use opencv drawing code
+
+def cv2_cross(img, idx, size, colour, t=1):
+    y, x = idx
+    cv2.line(img, tuple([y - size, x - size]), tuple([y + size, x + size]), colour, t)
+    cv2.line(img, tuple([y + size, x - size]), tuple([y - size, x + size]), colour, t)
 
 def cv2_text(image, txt, idx, colour):
     font = cv2.FONT_HERSHEY_SIMPLEX 
     fontScale = 0.5    
     thickness = 1
-    
-    # Using cv2.putText() method 
+
     return cv2.putText(image, txt, idx, font,  
                        fontScale, colour, thickness, cv2.LINE_AA) 

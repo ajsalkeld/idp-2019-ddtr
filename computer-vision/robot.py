@@ -1,3 +1,4 @@
+# code to locate the robot in a frame, and Robot class
 from global_stuff import *
 from arena import *
 from udpComms import CURR_UDP_DATA
@@ -6,25 +7,7 @@ if USE_VIDEO:
     import udpComms as udpc
 
 
-
 pt = Point
-
-HUE_NORMALISE = 179.0/360.0
-
-# # hue values
-# TURQOISE = np.array([180, 220])
-# VIOLET = np.array([230, 270])
-# PINK = np.array([270, 310])
-
-# # potentially better (more distributed):
-# YELLOW = np.array([35, 65])
-# BLUE = np.array([190, 230])
-# PURPLE = np.array([250, 290])
-
-# tape
-RED1 = np.array([0, 20])
-RED2 = np.array([340, 360])
-
 
 MAX_THETA_RATE = 0.5
 MAX_TRANS_RATE = 1
@@ -35,6 +18,10 @@ POS_DEADBAND_W = 0.03 # m
 
 class Robot():
 
+    # ---------------------------------------------------------
+    # initialisation
+    # ---------------------------------------------------------
+
     def __init__(self):
         self.w_m = 0.175
         self.h_m = 0.155
@@ -42,10 +29,6 @@ class Robot():
         self.centre_offset = np.array([0.065, 0.095])
         self.b_box1_offset = np.array([-0.250, -0.250])
         self.b_box1_wh = np.array([0.500, 0.500])
-        # self.b_box2_offset = self.b_box1_offset
-        # self.b_box2_wh = np.array([0.06, 0.1])
-        # self.b_box2_offset[0] += self.b_box1_wh[0]/2 - self.b_box2_wh[0]/2
-        # self.b_box2_offset[1] += self.b_box1_wh[1] - 0.01        
 
         self.competition_start_t = time.time()
 
@@ -79,11 +62,11 @@ class Robot():
 
         self.mine_types = ["live", "dead"]
 
-        # self.state = "moving from start pos"
-        # self.prev_state = ""
-
+        # initial state
         self.state = "rotating from start pos"
         self.prev_state = ""
+
+        # internal state variables
         self.first_mine = True
         self.target_mine = None
         self.target_mine_idx = None
@@ -110,16 +93,26 @@ class Robot():
         self.latest_cmd = None
         self.latest_rcv_time = time.time()
 
-        self.state_i = 0
-
+        # start comms with the Arduino
         if USE_VIDEO:
             udpc.rxthread.start()
             self.send_cmd("reset")
 
-    def update_state(self, second_run=False):
-        if not second_run:
-            self.state_i += 1
 
+
+    # ---------------------------------------------------------
+    # state machine
+    # ---------------------------------------------------------
+
+    # rudimentary state machine logic
+    # uses text to store state in order to be
+    # simple and human-readable
+    def update_state(self, second_run=False):
+
+
+        # decide if the current target mine can be driven directly towards
+        # or if Nina should first move to search_start pos to avoid
+        # hitting a mine in the bottom blind band
         def no_collide_chance():
             if self.target_mine is not None:
                 if self.first_mine:
@@ -139,6 +132,10 @@ class Robot():
 
             return False # default just in case
 
+
+        # decide if the Nina will move out of the camera's range when
+        # picking up the mine, and therefore whether a blind reverse is
+        # required after the pickup
         def needs_blind_reverse():
             if self.target_mine is not None:
                 if self.target_mine[1] < MINE_AREA_TOP_LEFT.pos[1] + MINE_BLIND_Y_THRESH:
@@ -147,15 +144,15 @@ class Robot():
                     return True
 
                 return False
-
             return True # default just in case
 
 
+        # ensure Nina returns home after 5m 36s have passed
         if time.time() - self.competition_start_t > 60 * 5.6:
             if "end pos" not in self.state:
                 self.state = "moving to end pos"
 
-
+        # blindly move out of start position (outside of camera range)
         if "from start pos" in self.state:
             
             if self.state == "rotating from start pos":
@@ -176,6 +173,28 @@ class Robot():
                         self.state = "looking for mines"
             
 
+        # flag to main.py if mine positions are required,
+        # then choose the optimal mine to pick up:
+        #
+        # - when leaving the start position, pick up the rightmost mine
+        # on the way to the search start position (to optimise speed)
+        #
+        # - for remainder of mines, if there are any outside the bottom blind
+        # band, drive directly towards them from the search start position
+        # in order of increasing distance (this ensures no collisions)
+        #
+        # - finally, navigate to mines in the bottom blind band in such a 
+        # way that Nina will not go out of the camera range
+        #
+        # - if a mine is at a safe angle from the search start position
+        # (i.e. we are confident that Nina will not crash into a mine in the
+        # bottom blind band), drive directly towards it rather than moving
+        # to the start position first to avoid wasting time
+        #
+        # when approaching a mine, send a packet to Nina to say she can start
+        # looking for mines - the Arduino code will take over once one is detected.
+        # continue polling status updates until told that a mine is being carried,
+        # then progress to next state depending on mine type
         if self.state == "looking for mines":
             if self.state != self.prev_state:
                 self.prev_state = "looking for mines"
@@ -188,12 +207,8 @@ class Robot():
 
                 print("mine locs:", self.mine_locs)
 
-                # sort by nearest to deposit area, as long
-                # as out of mine blind band plus 20cm (to avoid collisions)
                 if self.first_mine:
                     self.mine_locs.sort(key=lambda loc: loc[0], reverse=True)
-                    print(self.mine_locs)
-                    
                 else:
                     self.mine_locs.sort(key=lambda loc: pythag(loc - self.search_start_pos))
                 
@@ -323,6 +338,12 @@ class Robot():
                     else:
                         self.state = "moving to bin"
         
+
+        # move to hardcoded live and dead mine bin positions, then rotate
+        # towards the bin and drive blindly towards it.
+        # for the live bin, approach diagonally to avoid being lost by camera.
+        # make incremental changes to deposit position to avoid
+        # dropping mines in exactly the same place.
         if "moving to bin" in self.state:
             if not self.has_mine:
                 self.state = "looking for mines"
@@ -385,10 +406,16 @@ class Robot():
                     self.state = "depositing mine"
 
 
+        # tell Nina to drop the mine.
+        # delete the mine from the list of known mines. (this is
+        # overridden if we are above CV_N_MINE_CUTOFF mines left
+        # by the mine detection.)
+        # then transfer to 'looking for mines' state during deposit process
+        # so that no time is wasted while running mine detection algorithm.
+        # if no mines left, move to end position.
         if self.state == "depositing mine":
 
             if self.state != self.prev_state:
-                # print("depositing mine, prev state", self.prev_state, "it", self.state_i % 1000)
                 self.prev_state = "depositing mine"
                 self.send_cmd("drop mine")
                 self.deposit_time = time.time()
@@ -408,18 +435,9 @@ class Robot():
                     print("looking for mines")
                     self.state = "looking for mines"
 
-
-
-            
-
-            # if USE_VIDEO and udpc.CURR_UDP_DATA is not None:
-            #     if not udpc.CURR_UDP_DATA["carryingMine"]:
-
-                    # if self.achieved_target:
-
-
-                
-
+        
+        # move to just in front of end position then blindly move 
+        # forward (out of camera range) into it.
         if "moving to end pos" in self.state:
             if self.state == "moving to end pos":
                 if self.state != self.prev_state:
@@ -435,13 +453,6 @@ class Robot():
                     self.set_target_pos(np.array([2.05, 0.5]), rough=True)
                 if self.achieved_target:
                     self.state = "moving to end pos blind"
-
-            # if self.state == "moving to end pos 3":
-            #     if self.state != self.prev_state:
-            #         self.prev_state = "moving to end pos 3"
-            #         self.set_target_pos(np.array([2.1, 0.5]))
-            #     if self.achieved_target:
-            #         self.state = "moving to end pos blind"
             
             if self.state == "moving to end pos blind":
                 if self.state != self.prev_state:
@@ -450,7 +461,8 @@ class Robot():
                 if self.achieved_target:
                     self.state = "at end pos"
                     self.send_cmd("reset")
-                    raise Exception("finished")
+                    # easy way to quit program and handle cleanup
+                    raise Exception("finished") 
 
 
         if self.state != self.prev_state and not second_run:
@@ -460,6 +472,10 @@ class Robot():
         self.prev_state = self.state
 
 
+
+    # ---------------------------------------------------------
+    # illustration of frame with useful display data
+    # ---------------------------------------------------------
 
     def illustrate(self, img):
 
@@ -472,7 +488,7 @@ class Robot():
         centre = self.get_centre_coords()
         c_idx = pt(pos=centre).idx
 
-        # x cyan, y yellow, magenta centre, green heading
+        # x: cyan, y: yellow, magenta: centre, green: heading
         img = draw_line_from_params(img, origin, axes[0], (255, 255, 0)) 
         img = draw_line_from_params(img, origin, axes[1], (0, 255, 255))
         cv2_cross(img, c_idx, 3, (255, 0, 255), 2)
@@ -484,14 +500,12 @@ class Robot():
             cv2.drawContours(img, [bbox_ctr], 0, (255, 255, 255), 1)
 
 
-        # img = cv2.bitwise_and(img, ROBOT_MASK)
-        
         if self.t_pos is not None:
 
             t_idx = pt(pos=self.t_pos).idx
             t_s_idx = pt(pos=self.t_start_pos).idx
 
-            # desired centre position & line towards it - white
+            # desired centre position & line towards it: white
             cv2_cross(img, t_idx, 3, (255, 255, 255), 2)
             cv2.line(img, tuple(t_idx), tuple(t_s_idx), (255, 255, 255), 1)
 
@@ -501,23 +515,19 @@ class Robot():
 
             db_offset_idx = (db_offset_dir * (POS_DEADBAND_W / IDX_TO_COORD_SF)).astype(int)
 
-            # line deadband in orange
+            # line deadband: orange
             cv2.line(img, tuple(t_idx + db_offset_idx), tuple(t_s_idx + db_offset_idx), (0, 127, 255), 1)
             cv2.line(img, tuple(t_idx - db_offset_idx), tuple(t_s_idx - db_offset_idx), (0, 127, 255), 1)
 
         if self.t_rot is not None:
-
-            # img = draw_line_from_params(img, c_idx, axes[1], (255, 0, 0))
             img = draw_line_from_params(img, c_idx, self.t_rot, (255, 127, 0))
-            # img = draw_line_from_params(img, c_idx, axes[1], (255, 0, 0))
 
 
         if self.target_mine is not None:
             cv2_cross(img, pt(pos=self.target_mine).idx, 3, (127, 127, 255), 2)
 
 
-
-        # useful info
+        # useful info displayed on screen in text
         if self.latest_cmd is not None:
             cv2_text(img, f"latest command: {self.latest_cmd}", (50, 50), (255, 255, 255))
         
@@ -543,16 +553,15 @@ class Robot():
                 cv2_text(img, f"{key}:{val}", (60, 250 + 20 + 15 * i), (255, 255, 255))
 
 
-
-
-        # mpl_show(robot_img)
-        # if not USE_VIDEO:
-        #     mpl_show(img)
-
         return img
 
 
+    # ---------------------------------------------------------
+    # position estimation & recording
+    # ---------------------------------------------------------
 
+    # returns an opencv contour object which the robot is guaranteed
+    # to be fully encapsulated in - this is used as a mask for mine detection
     def get_bbox_ctr(self):
 
         v = self.get_pos_estimate()
@@ -575,6 +584,10 @@ class Robot():
 
         return bound_cntr
 
+    
+    # based on detected robot axes locations and intersections,
+    # correct for camera distortion and robot dimensions
+    # to return a centre position in real-world coords.
     def get_centre_coords(self):
 
         v = self.get_pos_estimate()
@@ -596,17 +609,16 @@ class Robot():
         return distorted + correction
 
         
-
-
-
+    # returns an exponentially-convolved rolling mean estimation
+    # of Nina's detection positions & axes.
     def get_pos_estimate(self):
 
-        if len(self.origin_history) < 1: # make this 3
+        # if insufficient data, return None.
+        if len(self.origin_history) < 1:
             return None
 
-        # punish records which were a long time ago
+        # punish recorded positions which were a long time ago
         weights = np.exp(5.0*(np.array(self.timestamps) - self.timestamps[-1]))      
-        # print(weights)
 
         def weighted_ave(arr):
             return sum([weights[i] * arr[i] for i in range(len(weights))])/sum(weights)
@@ -615,6 +627,8 @@ class Robot():
         return weighted_ave(self.origin_history), weighted_ave(self.axes_history)
 
 
+    # records a detected Nina position, if it's sensible (no teleportation)
+    # (there are other validation checks in detect_robot() itself)
     def record_pos(self, origin, axes):
 
         ts = time.time()
@@ -622,11 +636,8 @@ class Robot():
 
         est = self.get_pos_estimate()
 
-
+        # if no existing positions on record, trust this data
         if est is None:
-            # print("pos history", self.origin_history)
-            # print("recording at", origin, axes)
-
             self.origin_history.append(origin)
             self.axes_history.append(axes)
             self.timestamps.append(ts)
@@ -634,12 +645,13 @@ class Robot():
         else:
             distance = pythag(pt(idx=origin).pos - pt(idx=est[0]).pos)
 
+            # if speed greater than outrageous_speed 
+            # (accounting for noise w/ first clause), ignore
             if distance > 0.05 and distance / (ts - self.timestamps[0]) > outrageous_speed:
                 print("didn't record - moved too fast")
                 return
 
             else:
-                # print("recording at", origin, axes)
                 self.origin_history.append(origin)
                 self.axes_history.append(axes)
                 self.timestamps.append(ts)
@@ -650,7 +662,7 @@ class Robot():
             del self.timestamps[0]
 
 
-
+    # calls detect_robot on masked image and self.record_pos with result
     def update_pos(self, img):
         img = cv2.bitwise_and(img, ROBOT_MASK)
 
@@ -664,6 +676,12 @@ class Robot():
         self.record_pos(origin, axes)
 
 
+
+    # ---------------------------------------------------------
+    # control & communications with Nina
+    # ---------------------------------------------------------
+
+    # set motor values to blindly follow for a set period of time
     def set_blind_cmd(self, t, l, r):
         
         self.remove_target_pos()
@@ -675,7 +693,7 @@ class Robot():
         self.blind_timeout_time = t
 
 
-    # in real world coords - also sets target rot
+    # set target position in real world coords - also sets target rot
     def set_target_pos(self, t_pos, force = False, rough = False):
 
         if force:
@@ -705,6 +723,7 @@ class Robot():
         return True
 
 
+    # set target orientation (as a heading vector)
     def set_target_rot(self, rot):
 
         self.achieved_target = False
@@ -715,6 +734,7 @@ class Robot():
         self.t_rot = rot
 
 
+    # wipe misc state variables
     def remove_target_pos(self):
 
         self.achieved_target = False
@@ -728,8 +748,31 @@ class Robot():
         self.blind_timeout_time = 0
 
 
+    # logic to move Nina to a target position/orientation.
+    #
+    # when moving to a target position, Nina will:
+    # - rotate until facing towards the target
+    # - then start moving forward at full speed
+    # - perpendicular deviations from target line are compensated with additional rotation
+    # - there is fixed 'deadband' around the target line in which Nina is allowed to be.
+    #   * this is to prevent Nina from accidentally crashing into mines during motion.
+    #   * if Nina exits the deadband, she will stop, rotate to the correct orientation,
+    #     then start moving forwards again until she's inside the deadband
+    # - when near the target position/rotation, rotation/translation speed decreases
+    # - Nina's target orientation is a few cm behind the target position to prevent 
+    #   extreme orientation changes due to large errors when nearby.
+    # - on achieving a target, self.achieved_target is set to True, which is
+    #   the primary form of communication with Nina's state machine.
+    # - a target is achieved when within a certain distance/angle from the target.
+    # - if 'self.rough_target' is True, Nina will move more quickly and 
+    #   with more lenient achieved_target conditions, to optimise speed when
+    #   fine positioning is unecessary.
+    # 
+    # there is also code here to handle blind motion
+    # and target rotations without target positions.
     def control_to_target(self):
         
+        # blind motion handling
         if self.moving_blind:
             if time.time() - self.blind_start_time < self.blind_timeout_time:
                 self.set_motors()
@@ -753,16 +796,14 @@ class Robot():
 
         sign = lambda x: x/abs(x) if abs(x) > 0.000001 else 1
 
-        # print("target_rot", self.t_rot)
-        # print("actual_rot", real_rot)
-
         self.l_cmd = 0
         self.r_cmd = 0
 
         curr_t_rot = self.t_rot
 
         update_motors = True
-
+        # if there is a target position, calculate some useful
+        # quantities and check if target has been achieved.
         if self.t_pos is not None:
             self.pos_err = pythag(self.t_pos - real_pos)
             
@@ -782,39 +823,42 @@ class Robot():
                 self.send_cmd("stop")
                 update_motors = False
 
+
+        # if there is a target rotation (this is always the case
+        # when there is a target position), do rotation control
         if self.t_rot is not None:
 
+            # calculate angle error from dot product
+            # ensure angle has correct sense using cross produt
             d_prod = np.dot(curr_t_rot, real_rot)
             c_prod = curr_t_rot[0] * real_rot[1] - curr_t_rot[1] * real_rot[0]
-
-            # print("c_prod", c_prod)
 
             theta_err = np.arccos(d_prod)
             if c_prod < 0:
                 theta_err = -theta_err
 
             self.theta_err = theta_err
-            # print("theta error (rad):", theta_err)
 
             if abs(theta_err) > DEG_TO_RAD * 3:
                 
+                # first if statement prevents rotation back and forth
+                # when facing directly away form target due to latency -
+                # always pick one direction when >150 degrees away
                 if abs(theta_err) > DEG_TO_RAD * 150:
-                    theta_rate = - MAX_THETA_RATE                
+                    theta_rate = - MAX_THETA_RATE              
+                # rotate at max speed when >50 degrees away  
                 elif abs(theta_err) > DEG_TO_RAD * 50:
                     theta_rate = - MAX_THETA_RATE * sign(theta_err)
+                # rotate at half max speed when >25 degrees away
                 elif abs(theta_err) > DEG_TO_RAD * 25:
                     theta_rate = - MAX_THETA_RATE  * sign(theta_err) / 2
+                # rotate at speed proportional to angle error when <=25 degrees away
                 else:
                     theta_rate = - MAX_THETA_RATE  * self.theta_err / (30 * DEG_TO_RAD) 
 
-
-                # if self.ok_to_translate:
-                #     # self.l_cmd += theta_rate/2
-                #     # self.r_cmd -= theta_rate/2
-                #     pass
-                # else:
                 self.l_cmd += theta_rate
                 self.r_cmd -= theta_rate
+
 
             # correct rotation and no target pos -> achieved target
             elif self.t_pos is None:
@@ -829,8 +873,9 @@ class Robot():
                 self.send_cmd("stop")
                 update_motors = False
                 self.ok_to_translate = True
+
             
-             # hysteresis on ok_to_translate
+            # hysteresis on ok_to_translate
             if abs(theta_err) > DEG_TO_RAD * 10 and self.ok_to_translate:
                 print("not ok to translate")
                 self.send_cmd("stop")
@@ -882,12 +927,14 @@ class Robot():
                             self.r_cmd += MAX_TRANS_RATE * (self.pos_err + 0.5)/1.5
 
 
-
             if update_motors:
                 self.set_motors()
 
+    # l_cmd and r_cmd are float between -1.0 and 1.0
+    # sent values are integers between -255 and 255
     def set_motors(self):
 
+        # effectively 0 speed -> stop
         if abs(self.l_cmd) < 0.01 and abs(self.r_cmd) < 0.01:
             self.send_cmd("stop")
             return
@@ -905,8 +952,8 @@ class Robot():
         self.send_cmd(f"run:0:{l_int}:{r_int}")
         
         
-
     # max rate of 2.5 Hz for any particular command
+    # latest send times are stored in self.latest_cmd_times
     def send_cmd(self, cmd_txt, verbose=False):
 
         t_now = time.time() 
@@ -929,16 +976,13 @@ class Robot():
                 else:
                     self.looking_for_mines = False
             udpc.sendCommand(cmd_txt.encode())
-
-        # if cmd_txt == "stop":
-            # time.sleep(0.2)
         
         self.latest_cmd_times[command] = time.time()
         self.latest_cmd = cmd_txt
 
 
 
-
+    # at 2Hz, send "get status" packets
     def recv_update(self):
 
         t_now = time.time() 
@@ -950,10 +994,18 @@ class Robot():
             self.latest_rcv_time = t_now
 
 
+
+
+    # ---------------------------------------------------------
+    # updating mine locations logic
+    # ---------------------------------------------------------
+
+    # getter
     def wants_mine_data(self):
         return self.wants_mine_data_flag
 
 
+    # update mine_centres if sensible
     def set_mine_locs(self, mine_centres):
                 
         if len(mine_centres) == 0:
@@ -979,25 +1031,30 @@ class Robot():
 
 Nina = Robot()
 
-SQRT2 = 2**0.5 #correct
-_1_SQRT2 = 1/SQRT2 #correct
+SQRT2 = 2**0.5
+_1_SQRT2 = 1/SQRT2
 
 
+# ---------------------------------------------------------
+# computer vision for detecting 
+# ---------------------------------------------------------
+
+# wrapper to get important stuff from opencv line fitting function
 def get_line_params(contour):
-    params = cv2.fitLine(contour, cv2.DIST_L2,0,0.01,0.01)
+    params = cv2.fitLine(contour, cv2.DIST_L2, 0, 0.01, 0.01)
     params = [p[0] for p in params]
-    # print(params)
     return params
 
 
+# for illustration purposes
 def draw_line_from_params(img, line_pt, line_v, colour):
     [vx, vy] = line_v
     [x, y] = line_pt
     rows,cols = img.shape[:2]
-    # cv2_cross(img, (int(x + 50*vx), int(y + 50*vy)), 3, colour, 1)
     return cv2.line(img, (int(x), int(y)), (int(x + 50*vx), int(y + 50*vy)), colour, 1)
 
 
+# basic utility functions for geometry
 def pythag(v):
     return np.sqrt(np.dot(v, v))
 
@@ -1006,9 +1063,9 @@ def norm(v):
     return v / np.sqrt(np.dot(v, v))
 
 
+# solve equation system for intersect
 def find_intersect_coeffs(line_vs, line_pts):
 
-    # solve equation system for intersect
     m = np.transpose(np.array([line_vs[0], -line_vs[1]]))
     c = line_pts[1] - line_pts[0]
     
@@ -1022,13 +1079,10 @@ def find_intersect_coeffs(line_vs, line_pts):
 
 
 # fit vectors which are 100% perpendicular (rather than roughly)
+# to a pair of roughly perpendicular vectors
 def fit_orthog_vs(line_vs):
 
     halfway = norm(sum(line_vs))
-    
-
-    # print("line_vs", line_vs)
-    # print("halfway", halfway)
     
     rot_45_ccw = np.array([[_1_SQRT2, -_1_SQRT2], [_1_SQRT2, _1_SQRT2]])
     rot_45_cw  = np.array([[_1_SQRT2, _1_SQRT2], [-_1_SQRT2, _1_SQRT2]])
@@ -1042,44 +1096,50 @@ def fit_orthog_vs(line_vs):
     return line_vs
 
 
+# tape hue values - use two ranges for red
+# as it is at both ends of the spectrum
+HUE_NORMALISE = 179.0/360.0
+RED1 = np.array([0, 20])
+RED2 = np.array([340, 360])
+
+
+# main detection function
 def detect_robot(img):
 
-    sw = Stopwatch()
-    sw.start()
-
+    # split into HSV colour space
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
     h, s, v = cv2.split(hsv)
 
+
+    # threshold the hue into a colour range (called with ranges defined above)
     def get_colour_contours(colour_range):
 
         colour_min, colour_max = (colour_range * HUE_NORMALISE).astype(int)
-        in_range = cv2.inRange(hsv, np.array([colour_min, 100, 40]), np.array([colour_max, 255, 255]))
+        in_range = cv2.inRange(hsv, np.array([colour_min, 100, 40]), 
+                                    np.array([colour_max, 255, 255]))
         
-        # mpl_show(in_range)
-
         contours, ret = cv2.findContours(in_range, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         return contours
 
+
     red_cs = get_colour_contours(RED1)
     red_cs.extend(get_colour_contours(RED2))
 
+    # validation: at least 2 contours should exist
     if len(red_cs) < 2:
         # print("not enough contours")
         return None
 
+    # sort contours by area
     red_cs = sorted(red_cs, key=lambda c: cv2.contourArea(c), reverse=True)[:2]
     
-    red_lines = [get_line_params(c) for c in red_cs]
-
-    robot_img = np.zeros_like(hsv)
-    robot_img1 = np.zeros_like(hsv)
+    # fit lines to the two largest contours
+    red_lines = [get_line_params(c) for c in red_cs]]
 
     cv2.drawContours(img, red_cs, -1, (255, 255, 255), -1)
 
-    # mpl_show(img)
-
+    # unpack the line params: vi are vectors, ai are points
     v1 = np.array(red_lines[0][:2])
     v2 = np.array(red_lines[1][:2])
     line_vs = np.array([v1, v2])
@@ -1088,17 +1148,15 @@ def detect_robot(img):
     a2 = np.array(red_lines[1][2:])
     line_pts = np.array([a1, a2])
 
-
-    # make sure vectors are roughly orthogonal (sanity check)
+    # validation: lines are orthogonal (roughly)
     theta = (180/np.pi) * np.arccos(abs(np.dot(line_vs[0], line_vs[1])))
-    
     if (abs(90-theta) > 30):
         # print("more than 30 degrees from orthogonal:", theta)
         return None
 
     coeffs = find_intersect_coeffs(line_vs, line_pts)
 
-    # point vectors away from intersect point
+    # point vectors away from intersect point if not already
     for i, coeff in enumerate(coeffs):
         if coeff > 0:
             coeffs[i] = -coeffs[i]
@@ -1107,8 +1165,6 @@ def detect_robot(img):
     # using this rough solution make sure we have the x and y
     # vectors in the right order (cross product should be positive)
     cross_prod = line_vs[0][0] * line_vs[1][1] - line_vs[1][0] * line_vs[0][1]
-
-
     if cross_prod > 0:
         line_vs = [v for v in reversed(line_vs)]
         line_pts = [v for v in reversed(line_pts)]
@@ -1122,12 +1178,8 @@ def detect_robot(img):
 
     intersect_coords_1 = line_pts[0] + coeffs[0] * line_vs[0]
     intersect_coords_2 = line_pts[1] + coeffs[1] * line_vs[1]
-    # cv2_cross(img, intersect_coords_1.astype(int), 3, (255, 255, 255), 2)
-    # cv2_cross(img, intersect_coords_2.astype(int), 3, (255, 255, 255), 2)
-
-    # mpl_show(img)
-
-    # make sure intersection coords agree (sanity check)
+    
+    # validation: make sure intersection coords agree (should always happen)
     diff = intersect_coords_1 - intersect_coords_2
     if any(abs(i) > 0.1 for i in diff):
         # print("intersect coords disagree: ", intersect_coords_1, intersect_coords_2)
@@ -1136,6 +1188,8 @@ def detect_robot(img):
     intersect_coords = (0.5 * (intersect_coords_1 + intersect_coords_2)).astype(int)
 
 
+    # validation: intersection is less than Nina dimensions
+    # away from line centres of area
     for pt in line_pts:
         dist = pythag(pt - intersect_coords)
         if dist > max(Nina.dims/IDX_TO_COORD_SF):
@@ -1145,12 +1199,4 @@ def detect_robot(img):
     
     # coordinate system now fully established
     # vector 0 is robot x, vector 1 is robot y
-
-    sw.stop(False)
-
     return intersect_coords, line_vs
-
-
-
-    
-
