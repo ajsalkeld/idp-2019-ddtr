@@ -2,57 +2,14 @@
 # NOTE - this code is for Python 3.6 onwards (there are f-strings)
 from global_stuff import *
 
-import mines
 from robot import Nina
+from arena import *
+from mines import get_mine_coords
 
 if USE_VIDEO:
     import udpComms as udpc
 
-from arena import *
 pt = Point
-
-
-# applies mines.py detection code repeatedly to masked image
-# until correct number of mines detected
-def get_mine_coords(frame, nina_mask_ctr, n_mines_known):
-
-    frame_grey = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-
-    x1, y1 = MINE_AREA_TOP_LEFT.cv_tup
-    x2, y2 = MINE_AREA_BOT_RIGHT.cv_tup
-    mine_area_img = frame_grey[y1:y2, x1:x2].copy()
-
-    arena_mask_cpy = ARENA_MASK.copy()
-
-    # mask out the area around Nina
-    if nina_mask_ctr is not None:
-        cv2.drawContours(arena_mask_cpy, [nina_mask_ctr], 0, (0, 0, 0), -1)
-
-    mine_area_mask = arena_mask_cpy[y1:y2, x1:x2]
-    
-    BASE_DETECTION_THRESH = 25 # heuristic start value
-
-    detection_thresh = BASE_DETECTION_THRESH
-    mine_details = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
-
-    # start at high threshold (detect fewer mines) and increase until enough mines found
-    if n_mines_known is not None:
-        while len(mine_details) < n_mines_known:
-            if detection_thresh <= 10: # heuristic end value - starts detecting arena as mines below here
-                print(f"  too many attempts. Giving up with {len(mine_details)} mines")
-                return mine_details
-
-            detection_thresh -= 2
-            print(f"  not enough mines ({len(mine_details)} / {n_mines_known}) - reducing threshold to {detection_thresh}")
-            mine_details = mines.find_mines(mine_area_img, mine_area_mask, detection_thresh, x1, y1)
-
-        print(f"  mines detected: {len(mine_details)} / {n_mines_known}")
-
-    else:
-        print(f"  mines detected: {len(mine_details)}")
-
-    return mine_details
-
 
 # image shower function which works whether using video or not
 def show_img(frame):

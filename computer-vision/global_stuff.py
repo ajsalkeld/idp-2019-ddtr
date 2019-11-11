@@ -12,13 +12,13 @@ import math
 # for debugging, sometimes main.py is run with
 # a single frame/with only robot or mine detection enabled.
 # These paramaters control the program's operation
-USE_VIDEO = True
+USE_VIDEO = False
 DO_MINES = True
 DO_ROBOT = True
 RECORD = False
-START_MINES = 8
+START_MINES = 6
 
-F_NAME = "robot_mode.jpg"
+F_NAME = "pics/mine_mode.jpg"
 
 DEG_TO_RAD = math.pi/180.0
 RAD_TO_DEG = 180.0/math.pi

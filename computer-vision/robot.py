@@ -1135,7 +1135,7 @@ def detect_robot(img):
     red_cs = sorted(red_cs, key=lambda c: cv2.contourArea(c), reverse=True)[:2]
     
     # fit lines to the two largest contours
-    red_lines = [get_line_params(c) for c in red_cs]]
+    red_lines = [get_line_params(c) for c in red_cs]
 
     cv2.drawContours(img, red_cs, -1, (255, 255, 255), -1)
 
