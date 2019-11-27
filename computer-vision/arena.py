@@ -1,3 +1,4 @@
+# definition of arena coordinates and conversions, masks, and Point class
 from global_stuff import *
 
 
@@ -26,6 +27,7 @@ GRID_BOT_RIGHT_COORD = np.array([2.1, 2.1])
 IDX_TO_COORD_SF = (GRID_BOT_RIGHT_COORD - GRID_TOP_LEFT_COORD) / (GRID_BOT_RIGHT_IDX - GRID_TOP_LEFT_IDX)
 
 
+# used for simple conversions between image index-space and real positions
 class Point():
 
     # 'idx' is pixel coordinate in full image
@@ -148,6 +150,7 @@ class Point():
             raise StopIteration
 
 
+# sanity check
 if __name__ == "__main__":
     
     x = Point(idx=(200, 200))
@@ -162,10 +165,13 @@ if __name__ == "__main__":
     print((y*2 -x).cv_tup)
 
 
+# this masks out the red 'live mine' bin
+# so that Nina is the only red thing on the arena
 robot_mask_name = "pics/calib/robot_mask.jpg"
 ROBOT_MASK = cv2.imread(robot_mask_name)
 ROBOT_MASK = cv2.resize(ROBOT_MASK, tuple(RESOLUTION))
 
+# this masks out the off-table regions of the image
 arena_mask_name = "pics/calib/arena3mask.jpg"
 ARENA_MASK = cv2.imread(arena_mask_name, cv2.IMREAD_GRAYSCALE)
 ARENA_MASK = cv2.resize(ARENA_MASK, tuple(RESOLUTION))
@@ -178,11 +184,7 @@ ARENA_BOT_RIGHT = Point(pos=(2.4, 2.4))
 ARENA_IDX_H, ARENA_IDX_W = ARENA_BOT_RIGHT - ARENA_TOP_LEFT
 
 MINE_AREA_TOP_LEFT = Point(pos=(0.3, 0.3))
-MINE_AREA_BOT_RIGHT = Point(pos=(2.4-0.6
-, 2.1))
-
-# MINE_AREA_TOP_LEFT = Point(pos=(0.6, 0.35))
-# MINE_AREA_BOT_RIGHT = Point(pos=(1.8, 2.0))
+MINE_AREA_BOT_RIGHT = Point(pos=(2.4-0.6, 2.1))
 
 
 MINE_AREA_DILATION = Point(pos=(0.04, 0.04))
@@ -201,7 +203,7 @@ SAFE_LINE_X_POS = 2.4 - 0.5
 LIVE_DEPOSIT_Y_POS = 2.4 - 0.525
 DEAD_DEPOSIT_Y_POS = 2.4 - 0.75
 MINE_BLIND_Y_THRESH = 0.2
-SEARCH_START_Y_POS = 2.4 - 0.6
+SEARCH_START_Y_POS = 2.4 - 0.65
 
 
 LHS_BOUND_LINE_TOP = Point(pos=(2.4-0.5, 0))
@@ -210,6 +212,8 @@ LHS_BOUND_LINE_BOT = Point(pos=(2.4-0.5, 2.4))
 RHS_BOUND_LINE_TOP = Point(pos=(2.4-0.3, 0))
 RHS_BOUND_LINE_BOT = Point(pos=(2.4-0.3, 2.4))
 
+
+# illustrates the display frame with arena features
 def draw_arena_features(img):
 
     # arena outline

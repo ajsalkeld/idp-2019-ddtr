@@ -12,7 +12,7 @@ int status = WL_IDLE_STATUS; 	// Initial Status
 
 unsigned int localPort = LOCALPORT; // Local port to listen on
 
-int numDrops = 0;
+int numDrops = 1;
 
 char *packetBuffer; 		// Buffer to hold incoming packet
 
@@ -39,7 +39,8 @@ void setup()
   // Set LEDs to low
   digitalWrite(RED_PIN, LOW);
   digitalWrite(AMBER_PIN, LOW);
-  digitalWrite(GREEN_PIN, LOW);
+  digitalWrite(GREEN_PIN, LOW); // To test green LED on startup
+  digitalWrite(GREEN_PIN, HIGH);
 
   //Set sound effect pins to high (active low)  
   digitalWrite(LIVE_MINE_PIN, HIGH);
@@ -246,6 +247,10 @@ void loop()
       timer.enable(ultrasensorId);
       lookForMines = false;
     }
+    else if (command == "return home") {
+      digitalWrite(SUCCESS_PIN, LOW);
+      digitalWrite(SONG_PIN, LOW);
+    }
     else
     {
       sendRefusal(packetBuffer, packetSize, command);
@@ -391,7 +396,7 @@ void lowerFork(int dropOrPick)
       servo.write(pos); // tell servo to go to position in variable 'pos'
       delay(15);        // waits 15ms for the servo to reach the position
     }*/
-    pos = 159;
+    pos = 161;
     servo.write(pos);
     break;
   case TEST:
@@ -417,10 +422,12 @@ void lowerFork(int dropOrPick)
     }*/
     pos = 152;
     servo.write(pos);
-    playSound(SUCCESS_PIN);
     numDrops++;
-    if (numDrops == 3){
-      playSound(SONG_PIN);
+    if ((numDrops % 3) == 0){
+    playSound(SONG_PIN);
+    }
+    else {
+      playSound(SUCCESS_PIN);
     }
     break;
   case SHAKE:
@@ -519,7 +526,7 @@ void ultrasonicChecker()
             case LOW:
               // Not a live mine
               liveMine = false;
-              digitalWrite(GREEN_PIN, HIGH);
+              digitalWrite(GREEN_PIN, LOW);
               playSound(DEAD_MINE_PIN);
               timeToGreenOff = millis();
               break;
@@ -543,7 +550,7 @@ void ultrasonicChecker()
           getUSDistance();
           if (distance > 30) distance = 20;
         }
-        if (millis() - timeToGreenOff > 4500) {
+        if ((millis() - timeToGreenOff) > 4500) {
           turnOffGreenAmber();
         }
         float timeForMine = (distance) / 7.9 * 1000 + 1000;
@@ -588,7 +595,7 @@ void ultrasonicChecker()
         // Check US again - reattempt if not picked up
         getUSDistance();
 
-        if (millis() - timeToGreenOff > 4500) {
+        if ((millis() - timeToGreenOff) > 4500) {
           turnOffGreenAmber();
         }
 
@@ -609,7 +616,7 @@ void ultrasonicChecker()
         Udp.write(messageReturn);
         Udp.endPacket();
         carryingMine = true;
-        if (millis() - timeToGreenOff > 4500) {
+        if ((millis() - timeToGreenOff) > 4500) {
           turnOffGreenAmber();
         }
         //}
@@ -667,7 +674,7 @@ void flashRed() {
 
 void turnOffGreenAmber() {
   digitalWrite(AMBER_PIN, LOW);
-  digitalWrite(GREEN_PIN, LOW);
+  digitalWrite(GREEN_PIN, HIGH);
 }
 
 void playSound(int sound_pin) {
